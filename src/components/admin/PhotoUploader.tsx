@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Category } from "@/lib/types";
+import type { Category, WorkCategory } from "@/lib/types";
 import { uploadPhoto } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,13 @@ interface PendingFile {
 
 const MAX_MB = 10;
 
-export function PhotoUploader({ defaultCategory }: { defaultCategory: Category }) {
+export function PhotoUploader({
+  defaultCategory,
+  categories,
+}: {
+  defaultCategory: Category;
+  categories: WorkCategory[];
+}) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<Category>(defaultCategory);
@@ -45,7 +51,7 @@ export function PhotoUploader({ defaultCategory }: { defaultCategory: Category }
       next.push({
         file,
         preview: URL.createObjectURL(file),
-        title: file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+        title: "",
         location: "",
         tall: false,
       });
@@ -95,9 +101,11 @@ export function PhotoUploader({ defaultCategory }: { defaultCategory: Category }
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="weddings">Weddings</SelectItem>
-            <SelectItem value="portraits">Portraits</SelectItem>
-            <SelectItem value="events">Events</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.slug} value={cat.slug}>
+                {cat.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <span className="text-sm text-[#8B6B3D]">Select category, then drop photos below</span>

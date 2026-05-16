@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as WorkCategoryRouteImport } from './routes/work.$category'
 import { Route as AdminTestimonialsRouteImport } from './routes/admin/testimonials'
 import { Route as AdminSubmissionsRouteImport } from './routes/admin/submissions'
 import { Route as AdminSocialRouteImport } from './routes/admin/social'
@@ -19,6 +20,8 @@ import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminPhotosRouteImport } from './routes/admin/photos'
 import { Route as AdminPackagesRouteImport } from './routes/admin/packages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminHeroSlidesRouteImport } from './routes/admin/hero-slides'
+import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
@@ -34,6 +37,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const WorkCategoryRoute = WorkCategoryRouteImport.update({
+  id: '/work/$category',
+  path: '/work/$category',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminTestimonialsRoute = AdminTestimonialsRouteImport.update({
   id: '/testimonials',
@@ -70,10 +78,22 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminHeroSlidesRoute = AdminHeroSlidesRouteImport.update({
+  id: '/hero-slides',
+  path: '/hero-slides',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/hero-slides': typeof AdminHeroSlidesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/packages': typeof AdminPackagesRoute
   '/admin/photos': typeof AdminPhotosRoute
@@ -81,10 +101,13 @@ export interface FileRoutesByFullPath {
   '/admin/social': typeof AdminSocialRoute
   '/admin/submissions': typeof AdminSubmissionsRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
+  '/work/$category': typeof WorkCategoryRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/hero-slides': typeof AdminHeroSlidesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/packages': typeof AdminPackagesRoute
   '/admin/photos': typeof AdminPhotosRoute
@@ -92,12 +115,15 @@ export interface FileRoutesByTo {
   '/admin/social': typeof AdminSocialRoute
   '/admin/submissions': typeof AdminSubmissionsRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
+  '/work/$category': typeof WorkCategoryRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/hero-slides': typeof AdminHeroSlidesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/packages': typeof AdminPackagesRoute
   '/admin/photos': typeof AdminPhotosRoute
@@ -105,6 +131,7 @@ export interface FileRoutesById {
   '/admin/social': typeof AdminSocialRoute
   '/admin/submissions': typeof AdminSubmissionsRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
+  '/work/$category': typeof WorkCategoryRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -112,6 +139,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin/categories'
+    | '/admin/hero-slides'
     | '/admin/login'
     | '/admin/packages'
     | '/admin/photos'
@@ -119,10 +148,13 @@ export interface FileRouteTypes {
     | '/admin/social'
     | '/admin/submissions'
     | '/admin/testimonials'
+    | '/work/$category'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin/categories'
+    | '/admin/hero-slides'
     | '/admin/login'
     | '/admin/packages'
     | '/admin/photos'
@@ -130,11 +162,14 @@ export interface FileRouteTypes {
     | '/admin/social'
     | '/admin/submissions'
     | '/admin/testimonials'
+    | '/work/$category'
     | '/admin'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin/categories'
+    | '/admin/hero-slides'
     | '/admin/login'
     | '/admin/packages'
     | '/admin/photos'
@@ -142,12 +177,14 @@ export interface FileRouteTypes {
     | '/admin/social'
     | '/admin/submissions'
     | '/admin/testimonials'
+    | '/work/$category'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  WorkCategoryRoute: typeof WorkCategoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +209,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/work/$category': {
+      id: '/work/$category'
+      path: '/work/$category'
+      fullPath: '/work/$category'
+      preLoaderRoute: typeof WorkCategoryRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/testimonials': {
       id: '/admin/testimonials'
@@ -222,10 +266,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/hero-slides': {
+      id: '/admin/hero-slides'
+      path: '/hero-slides'
+      fullPath: '/admin/hero-slides'
+      preLoaderRoute: typeof AdminHeroSlidesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
+  AdminHeroSlidesRoute: typeof AdminHeroSlidesRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPackagesRoute: typeof AdminPackagesRoute
   AdminPhotosRoute: typeof AdminPhotosRoute
@@ -237,6 +297,8 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminHeroSlidesRoute: AdminHeroSlidesRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminPackagesRoute: AdminPackagesRoute,
   AdminPhotosRoute: AdminPhotosRoute,
@@ -252,6 +314,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  WorkCategoryRoute: WorkCategoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

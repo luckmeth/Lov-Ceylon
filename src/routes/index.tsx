@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
@@ -17,6 +17,7 @@ import {
   MapPin,
   Menu,
   MessageCircle,
+  Phone,
   Play,
   Sparkles,
   Star,
@@ -26,13 +27,15 @@ import {
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import {
+  categoriesQuery,
+  heroSlidesQuery,
   photosQuery,
   publicPackagesQuery,
   publicTestimonialsQuery,
   socialLinksQuery,
   submitContactForm,
 } from "@/lib/queries";
-import type { Photo as DbPhoto } from "@/lib/types";
+import type { Photo as DbPhoto, WorkCategory } from "@/lib/types";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useSeoMeta } from "@/hooks/use-seo-meta";
 import { useThemeApplicator } from "@/hooks/use-theme-applicator";
@@ -61,25 +64,7 @@ const fadeUp: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.65 } },
 };
 
-type Category = "weddings" | "portraits" | "events";
-
-const CATEGORY_META: Record<Category, { label: string; tag: string; intro: string }> = {
-  weddings: {
-    label: "Weddings",
-    tag: "Love, but with atmosphere.",
-    intro: "A blend of stillness, softness, and moments that feel larger than the frame.",
-  },
-  portraits: {
-    label: "Portraits",
-    tag: "Quiet confidence with character.",
-    intro: "Editorial portrait work shaped by texture, contrast, and natural expression.",
-  },
-  events: {
-    label: "Events",
-    tag: "Motion, rhythm, and memory.",
-    intro: "High-energy coverage with a cinematic eye for mood, people, and atmosphere.",
-  },
-};
+const PHOTOS_PREVIEW_LIMIT = 10;
 
 const services = [
   {
@@ -314,6 +299,7 @@ function Nav() {
     ["Work", "#work"],
     ["Story", "#story"],
     ["Strengths", "#services"],
+    ["Packages", "#packages"],
     ["Contact", "#contact"],
   ];
 
@@ -440,70 +426,169 @@ function Nav() {
   );
 }
 
+const WHATSAPP_NUMBER = "94716694353";
+
 function Hero() {
   const { data: settings } = useSiteSettings();
-  const bgRef = useRef<HTMLDivElement>(null);
+  const { data: slides = [] } = useQuery(heroSlidesQuery());
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const siteName = settings?.site_name ?? "Dopamine";
+
+  // Build slide image list — fall back to settings background if no DB slides
+  const bgImages: string[] = slides.length > 0
+    ? slides.map((s) => s.image_url)
+    : [settings?.hero_background_url ?? uCoupleCar];
+
+  // Auto-advance
   useEffect(() => {
-    const onScroll = () => {
-      if (bgRef.current) {
-        bgRef.current.style.transform = `translate3d(0, ${window.scrollY * 0.18}px, 0) scale(1.08)`;
-      }
-    };
+    if (bgImages.length <= 1 || paused) return;
+    timerRef.current = setInterval(() => setCurrent((i) => (i + 1) % bgImages.length), 5000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [bgImages.length, paused, current]);
 
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const goTo = (i: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setCurrent(i);
+  };
+
+  const bookMsg = encodeURIComponent(
+    `Hi ${siteName}! I found your portfolio and I'd like to book a photography session. Could you please share available dates, packages, and pricing? Thank you!`,
+  );
+  const waMsg = encodeURIComponent(
+    `Hi ${siteName}! I'm interested in your photography services. Could you share more details about packages and availability?`,
+  );
 
   return (
-    <section id="top" className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-4 bottom-4 top-22 z-[1] border border-[var(--bronze)]/60 shadow-[inset_0_0_0_1px_rgba(139,107,61,0.35)] md:inset-x-6 md:bottom-6 md:top-24 lg:inset-x-8 lg:bottom-8 lg:top-26" />
-      <div className="absolute inset-x-4 bottom-4 top-22 overflow-hidden md:inset-x-6 md:bottom-6 md:top-24 lg:inset-x-8 lg:bottom-8 lg:top-26">
+    <section
+      id="top"
+      className="relative min-h-screen overflow-hidden"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Slides — crossfade */}
+      {bgImages.map((url, i) => (
         <div
-          ref={bgRef}
-          className="absolute inset-0 bg-cover bg-top"
-          style={{ backgroundImage: `url(${settings?.hero_background_url ?? uCoupleCar})`, backgroundPosition: "center top" }}
-        />
-      </div>
-      {/* Almost transparent at top so image text is visible; heavy fade only at the very bottom for content legibility */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,8,4,0.14)_0%,rgba(14,8,4,0.0)_18%,rgba(14,8,4,0.0)_52%,rgba(14,8,4,0.68)_80%,rgba(14,8,4,0.92)_100%)]" />
+          key={url}
+          className={`absolute inset-0 transition-opacity duration-[1200ms] ease-in-out ${i === current ? "opacity-100" : "opacity-0"}`}
+        >
+          <div
+            className={`absolute inset-0 bg-cover bg-center ${i === current ? "ken-burns" : ""}`}
+            style={{ backgroundImage: `url(${url})` }}
+          />
+        </div>
+      ))}
 
-      <div className="relative flex min-h-screen flex-col justify-end px-6 pb-16 md:pb-20">
-        <div className="mx-auto flex w-full max-w-7xl justify-center">
-          <div className="flex max-w-3xl flex-col items-center text-center">
-            <div className="inline-flex items-center gap-3 rounded-full border border-gold/30 bg-[rgba(14,8,4,0.55)] px-4 py-2 text-[10px] uppercase tracking-[0.4em] text-gold backdrop-blur-md">
-            <span className="h-2 w-2 rounded-full bg-gold pulse-soft" />
-            Portfolio of a Sri Lankan visual storyteller
-            </div>
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,8,4,0.45)_0%,rgba(14,8,4,0.12)_25%,rgba(14,8,4,0.12)_60%,rgba(14,8,4,0.68)_82%,rgba(14,8,4,0.95)_100%)]" />
 
-            <h1 className="mt-6 max-w-2xl font-display text-4xl leading-[0.92] text-cream drop-shadow-[0_2px_20px_rgba(0,0,0,0.55)] md:text-5xl lg:text-6xl">
-              {settings?.hero_heading ?? "Frames that reveal how the photographer sees."}
-            </h1>
-            {settings?.hero_subtext && (
-              <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream/75 drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
-                {settings.hero_subtext}
-              </p>
+      {/* Frame border */}
+      <div className="pointer-events-none absolute inset-x-4 bottom-4 top-22 z-[1] border border-[var(--bronze)]/55 md:inset-x-6 md:bottom-6 md:top-24 lg:inset-x-8 lg:bottom-8 lg:top-26" />
+
+      {/* Content */}
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-between px-6 pb-14 pt-24 md:pb-20">
+
+        {/* Center block — logo + heading, floating over photo */}
+        <div className="relative flex flex-1 flex-col items-center justify-center gap-5 text-center">
+          {/* Soft radial vignette — not a box, just darkens behind text */}
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_65%_at_50%_50%,rgba(14,8,4,0.55)_0%,transparent_100%)]" />
+
+          {/* Logo mark */}
+          <div className="relative flex flex-col items-center gap-2">
+            {settings?.logo_url ? (
+              <img src={settings.logo_url} alt={siteName} className="h-14 w-auto object-contain drop-shadow-[0_2px_16px_rgba(0,0,0,0.8)]" />
+            ) : (
+              <>
+                <Aperture className="h-12 w-12 text-gold" strokeWidth={1.2} style={{ filter: "drop-shadow(0 0 14px rgba(212,171,95,0.7)) drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }} />
+                <span className="font-display text-4xl tracking-wide text-cream drop-shadow-[0_2px_24px_rgba(0,0,0,0.9)] md:text-5xl">
+                  {siteName}
+                </span>
+              </>
             )}
+          </div>
 
+          {/* Badge */}
+          <div className="relative inline-flex items-center gap-2.5 rounded-full border border-gold/40 bg-[rgba(14,8,4,0.6)] px-4 py-2 text-[10px] uppercase tracking-[0.38em] text-gold backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold pulse-soft" />
+            Portfolio of a Sri Lankan visual storyteller
+          </div>
+
+          {/* Heading */}
+          <h1 className="relative max-w-xl font-display text-3xl leading-[0.96] text-cream drop-shadow-[0_2px_28px_rgba(0,0,0,0.95)] md:text-5xl lg:text-[3.4rem]">
+            {settings?.hero_heading ?? "Frames that reveal how the photographer sees."}
+          </h1>
+          {settings?.hero_subtext && (
+            <p className="relative max-w-md text-sm leading-relaxed text-cream/80 drop-shadow-[0_1px_10px_rgba(0,0,0,0.9)]">
+              {settings.hero_subtext}
+            </p>
+          )}
+
+          {/* CTA buttons */}
+          <div className="relative mt-1 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#about"
-              className="group mt-8 inline-flex items-center gap-3 bg-gold px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-[var(--espresso)] transition-transform duration-300 hover:-translate-y-0.5"
+              className="group inline-flex items-center gap-2.5 bg-gold px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-[var(--espresso)] shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 hover:brightness-110"
             >
               Discover the story
-              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </a>
+
+            <a
+              href={`tel:+${WHATSAPP_NUMBER}`}
+              className="group inline-flex items-center gap-2 border border-white/50 bg-[rgba(14,8,4,0.55)] px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-cream shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-gold/70 hover:text-gold"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              Call now
+            </a>
+
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${waMsg}`}
+              target="_blank"
+              rel="noreferrer"
+              className="group inline-flex items-center gap-2 border border-white/50 bg-[rgba(14,8,4,0.55)] px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-cream shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-[#25d366]/70 hover:text-[#25d366]"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              WhatsApp
+            </a>
+
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${bookMsg}`}
+              target="_blank"
+              rel="noreferrer"
+              className="group inline-flex items-center gap-2 border border-gold/60 bg-[rgba(212,171,95,0.2)] px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-gold shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-gold hover:text-[var(--espresso)]"
+            >
+              Book now
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
           </div>
         </div>
-      </div>
 
-      <a
-        href="#about"
-        aria-label="Scroll down"
-        className="absolute bottom-6 right-8 flex flex-col items-center gap-2 text-gold/90"
-      >
-        <span className="text-[10px] uppercase tracking-[0.4em]">Scroll</span>
-        <ArrowDown className="h-4 w-4 animate-bounce" />
-      </a>
+        {/* Slide dots + scroll hint */}
+        <div className="flex flex-col items-center gap-5">
+          {bgImages.length > 1 && (
+            <div className="flex items-center gap-2">
+              {bgImages.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  aria-label={`Go to slide ${i + 1}`}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === current
+                      ? "h-2 w-6 bg-gold"
+                      : "h-2 w-2 bg-white/30 hover:bg-white/60"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+          <a href="#about" aria-label="Scroll down" className="flex flex-col items-center gap-1.5 text-gold/70 transition-colors hover:text-gold">
+            <span className="text-[9px] uppercase tracking-[0.4em]">Scroll</span>
+            <ArrowDown className="h-4 w-4 animate-bounce" />
+          </a>
+        </div>
+      </div>
     </section>
   );
 }
@@ -751,27 +836,25 @@ function Lightbox({
 }
 
 function Work() {
-  const [active, setActive] = useState<Category>("weddings");
+  const [active, setActive] = useState<string>("");
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const { data: categories = [] } = useQuery(categoriesQuery());
   const { data: allPhotos = [] } = useQuery(photosQuery());
 
-  const collections = useMemo(
-    () =>
-      (Object.keys(CATEGORY_META) as Category[]).reduce(
-        (acc, cat) => {
-          acc[cat] = {
-            ...CATEGORY_META[cat],
-            photos: allPhotos.filter((p) => p.category === cat),
-          };
-          return acc;
-        },
-        {} as Record<Category, { label: string; tag: string; intro: string; photos: DbPhoto[] }>,
-      ),
-    [allPhotos],
-  );
+  // Set first category as default once loaded
+  useEffect(() => {
+    if (categories.length > 0 && !active) setActive(categories[0].slug);
+  }, [categories, active]);
 
-  const cats = useMemo(() => Object.keys(CATEGORY_META) as Category[], []);
-  const data = collections[active];
+  const activeCategory: WorkCategory | undefined = categories.find((c) => c.slug === active);
+  const categoryPhotos = useMemo(
+    () => allPhotos.filter((p) => p.category === active),
+    [allPhotos, active],
+  );
+  const previewPhotos = categoryPhotos.slice(0, PHOTOS_PREVIEW_LIMIT);
+  const hasMore = categoryPhotos.length > PHOTOS_PREVIEW_LIMIT;
+
+  if (categories.length === 0) return null;
 
   return (
     <section id="work" className="relative overflow-hidden border-y border-border bg-[var(--espresso)] px-6 py-28 md:py-32">
@@ -791,59 +874,56 @@ function Work() {
             </h2>
           </div>
           <p className="reveal max-w-md text-sm leading-relaxed text-cream/60 md:text-base">
-            The work section is now framed as a curated portfolio archive so people notice visual range and consistency, not just what services are available.
+            A curated archive — visual range and consistency across every project.
           </p>
         </div>
 
         <div className="reveal mb-10 flex flex-wrap items-center gap-3">
-          {cats.map((category, index) => {
-            const isActive = category === active;
-            return (
-              <button
-                key={category}
-                onClick={() => setActive(category)}
-                className={`group relative overflow-hidden rounded-full border px-5 py-3 text-[11px] uppercase tracking-[0.3em] transition-all ${
-                  isActive
-                    ? "border-gold bg-gold text-[var(--espresso)]"
-                    : "border-white/12 bg-white/3 text-cream/70 hover:border-gold/40 hover:text-gold"
-                }`}
-              >
-                <span className="mr-3 text-[10px] opacity-60">{String(index + 1).padStart(2, "0")}</span>
-                {collections[category].label}
-              </button>
-            );
-          })}
+          {categories.map((cat, index) => (
+            <button
+              key={cat.slug}
+              onClick={() => setActive(cat.slug)}
+              className={`group relative overflow-hidden rounded-full border px-5 py-3 text-[11px] uppercase tracking-[0.3em] transition-all ${
+                cat.slug === active
+                  ? "border-gold bg-gold text-[var(--espresso)]"
+                  : "border-white/12 bg-white/3 text-cream/70 hover:border-gold/40 hover:text-gold"
+              }`}
+            >
+              <span className="mr-3 text-[10px] opacity-60">{String(index + 1).padStart(2, "0")}</span>
+              {cat.label}
+            </button>
+          ))}
         </div>
 
         <div className="mb-10 grid gap-5 lg:grid-cols-[0.74fr_1.26fr]">
           <div className="reveal glass-panel flex flex-col justify-between p-8">
             <div>
               <p className="text-[10px] uppercase tracking-[0.35em] text-gold">Current selection</p>
-              <h3 className="mt-4 font-display text-4xl text-cream md:text-5xl">{data.label}</h3>
-              <p className="mt-4 font-display text-2xl italic text-gold/90">{data.tag}</p>
-              <p className="mt-6 max-w-sm text-sm leading-relaxed text-cream/68">{data.intro}</p>
+              <h3 className="mt-4 font-display text-4xl text-cream md:text-5xl">{activeCategory?.label}</h3>
+              <p className="mt-4 font-display text-2xl italic text-gold/90">{activeCategory?.tag}</p>
+              <p className="mt-6 max-w-sm text-sm leading-relaxed text-cream/68">{activeCategory?.intro}</p>
             </div>
             <div className="mt-8 border-t border-white/10 pt-6 text-[10px] uppercase tracking-[0.35em] text-cream/45">
               Open any frame to view it as a portfolio piece
             </div>
           </div>
 
-          <div className="reveal overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 p-3">
+          <div className="reveal relative min-h-[22rem] overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 md:min-h-[30rem]">
             <img
-              src={data.photos[0]?.url}
-              alt={data.photos[0]?.title}
-              className="h-[22rem] w-full rounded-[1.5rem] object-cover md:h-[30rem]"
+              src={categoryPhotos[0]?.url}
+              alt={categoryPhotos[0]?.title}
+              className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
           </div>
         </div>
 
-        <div key={active} className="grid auto-rows-[210px] grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
-          {data.photos.map((photo, index) => (
+        <div key={active} className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5" style={{ gridAutoRows: "clamp(160px, 22vw, 280px)" }}>
+          {previewPhotos.map((photo, index) => (
             <button
-              key={`${active}-${photo.title}-${index}`}
+              key={`${active}-${photo.id}`}
               onClick={() => setLightbox(index)}
-              className={`group relative overflow-hidden rounded-[1.5rem] text-left ${photo.tall ? "row-span-2" : ""} ${
+              className={`group relative h-full overflow-hidden rounded-[1.5rem] text-left ${photo.tall ? "row-span-2" : ""} ${
                 index === 0 ? "col-span-2" : ""
               }`}
               style={{ opacity: 0, animation: `fade-in 0.7s ease-out ${index * 0.08}s forwards` }}
@@ -852,16 +932,15 @@ function Work() {
                 src={photo.url}
                 alt={photo.title}
                 loading="lazy"
-                className="h-full w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-110"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,10,6,0.02),rgba(16,10,6,0.16)_40%,rgba(16,10,6,0.92)_100%)]" />
               <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: "linear-gradient(145deg, color-mix(in oklab, var(--gold) 22%, transparent), transparent 55%)" }} />
               <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-4">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.35em] text-gold">
-                    {String(index + 1).padStart(2, "0")} / {data.label}
+                    {String(index + 1).padStart(2, "0")} / {activeCategory?.label}
                   </p>
-                  <p className="mt-2 font-display text-xl italic text-cream md:text-2xl">{photo.title}</p>
                   {photo.location ? (
                     <p className="mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.32em] text-cream/60">
                       <MapPin className="h-3 w-3" />
@@ -876,11 +955,24 @@ function Work() {
             </button>
           ))}
         </div>
+
+        {hasMore && (
+          <div className="mt-10 flex justify-center">
+            <Link
+              to="/work/$category"
+              params={{ category: active }}
+              className="group flex items-center gap-3 rounded-full border border-gold/40 bg-gold/8 px-8 py-4 text-[11px] uppercase tracking-[0.3em] text-gold transition-all hover:bg-gold hover:text-[var(--espresso)]"
+            >
+              View all {categoryPhotos.length} photos
+              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </div>
+        )}
       </div>
 
       {lightbox !== null ? (
         <Lightbox
-          photos={data.photos}
+          photos={previewPhotos}
           index={lightbox}
           onClose={() => setLightbox(null)}
           setIndex={(value) => setLightbox(value)}

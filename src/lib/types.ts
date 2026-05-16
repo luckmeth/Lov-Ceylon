@@ -1,4 +1,25 @@
-export type Category = "weddings" | "portraits" | "events";
+export type Category = string;
+
+export interface HeroSlide {
+  id: string;
+  storage_key: string;
+  image_url: string;
+  caption: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface WorkCategory {
+  id: string;
+  slug: string;
+  label: string;
+  tag: string;
+  intro: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
 
 export interface SiteSettings {
   id: number;

@@ -1,16 +1,19 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, GripVertical, MapPin, Trash2 } from "lucide-react";
+import { Eye, EyeOff, GripVertical, MapPin, Pencil, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Photo } from "@/lib/types";
 import { deletePhoto, updatePhoto, updatePhotoOrder } from "@/lib/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function PhotoGrid({ photos }: { photos: Photo[] }) {
   const queryClient = useQueryClient();
   const [items, setItems] = useState<Photo[]>(photos);
   const dragIdx = useRef<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   // Sync when parent data changes
   if (photos.length !== items.length || photos[0]?.id !== items[0]?.id) {
@@ -39,6 +42,20 @@ export function PhotoGrid({ photos }: { photos: Photo[] }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["photos"] }),
     onError: () => toast.error("Failed to update"),
   });
+
+  const { mutate: doUpdateTitle } = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      updatePhoto(id, { title }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["photos"] });
+      setEditingId(null);
+    },
+    onError: () => toast.error("Failed to update title"),
+  });
+
+  const commitTitle = (id: string) => {
+    doUpdateTitle({ id, title: editTitle.trim() });
+  };
 
   const handleDrop = async (dropIdx: number) => {
     if (dragIdx.current === null || dragIdx.current === dropIdx) return;
@@ -86,7 +103,32 @@ export function PhotoGrid({ photos }: { photos: Photo[] }) {
           {/* Overlay controls */}
           <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100">
             <div className="p-2 space-y-1">
-              <p className="truncate text-xs font-medium text-white">{photo.title}</p>
+              {editingId === photo.id ? (
+                <Input
+                  autoFocus
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={() => commitTitle(photo.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitTitle(photo.id);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  placeholder="Add a title…"
+                  className="h-6 text-xs bg-black/50 border-white/30 text-white placeholder:text-white/50"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <button
+                  className="flex items-center gap-1 w-full text-left"
+                  onClick={(e) => { e.stopPropagation(); setEditTitle(photo.title ?? ""); setEditingId(photo.id); }}
+                  title="Edit title"
+                >
+                  <p className="truncate text-xs font-medium text-white flex-1">
+                    {photo.title || <span className="italic text-white/50">Add title…</span>}
+                  </p>
+                  <Pencil className="h-3 w-3 text-white/60 shrink-0" />
+                </button>
+              )}
               {photo.location && (
                 <p className="flex items-center gap-0.5 text-[10px] text-white/70">
                   <MapPin className="h-2.5 w-2.5" />

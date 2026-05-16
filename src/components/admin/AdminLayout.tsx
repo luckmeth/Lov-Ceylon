@@ -5,12 +5,12 @@ import {
   BarChart3,
   Camera,
   ExternalLink,
-  Image,
+  FolderOpen,
+  Images,
   Link2,
   LogOut,
   Mail,
   Menu,
-  MessageSquare,
   Package,
   Settings,
   Star,
@@ -25,7 +25,9 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { label: "Dashboard", to: "/admin", icon: BarChart3, exact: true },
+  { label: "Hero Slides", to: "/admin/hero-slides", icon: Images },
   { label: "Photos", to: "/admin/photos", icon: Camera },
+  { label: "Categories", to: "/admin/categories", icon: FolderOpen },
   { label: "Packages", to: "/admin/packages", icon: Package },
   { label: "Testimonials", to: "/admin/testimonials", icon: Star },
   { label: "Site Settings", to: "/admin/settings", icon: Settings },
@@ -64,7 +66,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8B6B3D]">
           Content
         </div>
-        {navItems.slice(0, 4).map((item) => (
+        {navItems.slice(0, 6).map((item) => (
           <NavLink
             key={item.to}
             item={item}
@@ -77,7 +79,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <div className="mb-1 mt-5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8B6B3D]">
           Site
         </div>
-        {navItems.slice(4, 6).map((item) => (
+        {navItems.slice(6, 8).map((item) => (
           <NavLink
             key={item.to}
             item={item}
@@ -90,8 +92,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           Inbox
         </div>
         <NavLink
-          item={navItems[6]}
-          active={isActive(navItems[6].to)}
+          item={navItems[8]}
+          active={isActive(navItems[8].to)}
           badge={unreadCount}
           onClick={() => setSidebarOpen(false)}
         />

@@ -2,12 +2,136 @@ import { supabase } from "./supabase";
 import type {
   Category,
   ContactSubmission,
+  HeroSlide,
   Package,
   Photo,
   SiteSettings,
   SocialLink,
   Testimonial,
+  WorkCategory,
 } from "./types";
+
+// ─── Hero Slides ──────────────────────────────────────────────────────────────
+
+export const heroSlidesQuery = () => ({
+  queryKey: ["hero-slides"],
+  queryFn: async (): Promise<HeroSlide[]> => {
+    const { data, error } = await supabase
+      .from("hero_slides")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order");
+    if (error) return [];
+    return (data ?? []) as HeroSlide[];
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
+export const allHeroSlidesQuery = () => ({
+  queryKey: ["hero-slides", "admin"],
+  queryFn: async (): Promise<HeroSlide[]> => {
+    const { data, error } = await supabase
+      .from("hero_slides")
+      .select("*")
+      .order("sort_order");
+    if (error) return [];
+    return (data ?? []) as HeroSlide[];
+  },
+});
+
+export const uploadHeroSlide = async (
+  file: File,
+  caption: string,
+  existingCount: number,
+) => {
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const storageKey = `hero/${crypto.randomUUID()}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("photos")
+    .upload(storageKey, file, { contentType: file.type });
+  if (uploadError) throw uploadError;
+  const { data: urlData } = supabase.storage.from("photos").getPublicUrl(storageKey);
+  const { error: insertError } = await supabase.from("hero_slides").insert({
+    storage_key: storageKey,
+    image_url: urlData.publicUrl,
+    caption: caption || null,
+    sort_order: existingCount,
+    is_active: true,
+  });
+  if (insertError) throw insertError;
+};
+
+export const deleteHeroSlide = async (slide: HeroSlide) => {
+  await supabase.storage.from("photos").remove([slide.storage_key]);
+  const { error } = await supabase.from("hero_slides").delete().eq("id", slide.id);
+  if (error) throw error;
+};
+
+export const updateHeroSlide = async (id: string, patch: Partial<HeroSlide>) => {
+  const { error } = await supabase.from("hero_slides").update(patch).eq("id", id);
+  if (error) throw error;
+};
+
+export const updateHeroSlideOrder = async (updates: { id: string; sort_order: number }[]) => {
+  const { error } = await supabase.from("hero_slides").upsert(updates);
+  if (error) throw error;
+};
+
+// ─── Work Categories ──────────────────────────────────────────────────────────
+
+export const categoriesQuery = () => ({
+  queryKey: ["work-categories"],
+  queryFn: async (): Promise<WorkCategory[]> => {
+    const { data, error } = await supabase
+      .from("work_categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order");
+    if (error) throw error;
+    return (data ?? []) as WorkCategory[];
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
+export const allCategoriesQuery = () => ({
+  queryKey: ["work-categories", "admin"],
+  queryFn: async (): Promise<WorkCategory[]> => {
+    const { data, error } = await supabase
+      .from("work_categories")
+      .select("*")
+      .order("sort_order");
+    if (error) throw error;
+    return (data ?? []) as WorkCategory[];
+  },
+});
+
+export const createCategory = async (cat: {
+  slug: string;
+  label: string;
+  tag: string;
+  intro: string;
+}) => {
+  const { data: existing } = await supabase
+    .from("work_categories")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const nextOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+  const { error } = await supabase
+    .from("work_categories")
+    .insert({ ...cat, sort_order: nextOrder, is_active: true });
+  if (error) throw error;
+};
+
+export const updateCategory = async (id: string, patch: Partial<WorkCategory>) => {
+  const { error } = await supabase.from("work_categories").update(patch).eq("id", id);
+  if (error) throw error;
+};
+
+export const deleteCategory = async (id: string) => {
+  const { error } = await supabase.from("work_categories").delete().eq("id", id);
+  if (error) throw error;
+};
 
 // ─── Site Settings ────────────────────────────────────────────────────────────
 
