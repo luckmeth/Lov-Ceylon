@@ -54,7 +54,7 @@ function AdminLogin() {
         <div className="mb-8 text-center">
           <Aperture className="mx-auto mb-3 h-10 w-10 text-[#C9A96E]" />
           <h1 className="font-display text-2xl font-semibold tracking-tight text-[#1a1008]">
-            Dopamine Admin
+            Lov&#39;Ceylon Admin
           </h1>
           <p className="mt-1 text-sm text-[#6b5a4a]">Sign in to manage your site</p>
         </div>

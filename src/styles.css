@@ -38,7 +38,7 @@
 
 :root {
   --radius: 0.5rem;
-  /* Dopamine palette */
+  /* Lov'Ceylon palette */
   --background: oklch(0.22 0.03 55);     /* #2C1F14 warm dark brown */
   --espresso: oklch(0.16 0.025 55);      /* #1A1008 */
   --gold: oklch(0.76 0.09 80);           /* #C9A96E */

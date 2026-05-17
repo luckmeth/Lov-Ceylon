@@ -384,7 +384,7 @@ function AdminSettings() {
               form={form}
               name="marquee_words"
               label="Marquee words"
-              description='e.g. "Dopamine, Portraits, Weddings, Events, Editorial, Mood, Light"'
+              description="e.g. &quot;Lov'Ceylon, Wedding, Fashion, Portrait, Sri Lanka, Japan, Timeless&quot;"
               rows={2}
             />
           </section>

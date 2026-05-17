@@ -5,6 +5,8 @@ import type {
   HeroSlide,
   Package,
   Photo,
+  ProcessStep,
+  Service,
   SiteSettings,
   SocialLink,
   Testimonial,
@@ -334,7 +336,8 @@ export const markSubmissionRead = async (id: string, is_read: boolean) => {
 export const submitContactForm = async (data: {
   name: string;
   email: string;
-  project_type: string;
+  phone?: string;
+  service?: string;
   message: string;
 }) => {
   const { error } = await supabase.from("contact_submissions").insert(data);
@@ -383,5 +386,94 @@ export const upsertTestimonial = async (
 
 export const deleteTestimonial = async (id: string) => {
   const { error } = await supabase.from("testimonials").delete().eq("id", id);
+  if (error) throw error;
+};
+
+// ─── Services ─────────────────────────────────────────────────────────────────
+
+export const publicServicesQuery = () => ({
+  queryKey: ["services", "public"],
+  queryFn: async (): Promise<Service[]> => {
+    const { data, error } = await supabase
+      .from("services")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order");
+    if (error) return [];
+    return (data ?? []) as Service[];
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
+export const allServicesQuery = () => ({
+  queryKey: ["services"],
+  queryFn: async (): Promise<Service[]> => {
+    const { data, error } = await supabase
+      .from("services")
+      .select("*")
+      .order("sort_order");
+    if (error) throw error;
+    return (data ?? []) as Service[];
+  },
+});
+
+export const upsertService = async (s: Partial<Service> & { name: string }) => {
+  if (s.id) {
+    const { id, ...updates } = s;
+    const { error } = await supabase.from("services").update(updates).eq("id", id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("services").insert(s);
+    if (error) throw error;
+  }
+};
+
+export const deleteService = async (id: string) => {
+  const { error } = await supabase.from("services").delete().eq("id", id);
+  if (error) throw error;
+};
+
+// ─── Process Steps ────────────────────────────────────────────────────────────
+
+export const publicProcessStepsQuery = () => ({
+  queryKey: ["process-steps", "public"],
+  queryFn: async (): Promise<ProcessStep[]> => {
+    const { data, error } = await supabase
+      .from("process_steps")
+      .select("*")
+      .order("sort_order");
+    if (error) return [];
+    return (data ?? []) as ProcessStep[];
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
+export const allProcessStepsQuery = () => ({
+  queryKey: ["process-steps"],
+  queryFn: async (): Promise<ProcessStep[]> => {
+    const { data, error } = await supabase
+      .from("process_steps")
+      .select("*")
+      .order("sort_order");
+    if (error) throw error;
+    return (data ?? []) as ProcessStep[];
+  },
+});
+
+export const upsertProcessStep = async (
+  s: Partial<ProcessStep> & { title: string; description: string },
+) => {
+  if (s.id) {
+    const { id, ...updates } = s;
+    const { error } = await supabase.from("process_steps").update(updates).eq("id", id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("process_steps").insert(s);
+    if (error) throw error;
+  }
+};
+
+export const deleteProcessStep = async (id: string) => {
+  const { error } = await supabase.from("process_steps").delete().eq("id", id);
   if (error) throw error;
 };

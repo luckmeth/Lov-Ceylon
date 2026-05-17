@@ -17,6 +17,8 @@ import { Route as AdminTestimonialsRouteImport } from './routes/admin/testimonia
 import { Route as AdminSubmissionsRouteImport } from './routes/admin/submissions'
 import { Route as AdminSocialRouteImport } from './routes/admin/social'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminServicesRouteImport } from './routes/admin/services'
+import { Route as AdminProcessRouteImport } from './routes/admin/process'
 import { Route as AdminPhotosRouteImport } from './routes/admin/photos'
 import { Route as AdminPackagesRouteImport } from './routes/admin/packages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
@@ -63,6 +65,16 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminServicesRoute = AdminServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProcessRoute = AdminProcessRouteImport.update({
+  id: '/process',
+  path: '/process',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPhotosRoute = AdminPhotosRouteImport.update({
   id: '/photos',
   path: '/photos',
@@ -97,6 +109,8 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/packages': typeof AdminPackagesRoute
   '/admin/photos': typeof AdminPhotosRoute
+  '/admin/process': typeof AdminProcessRoute
+  '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/social': typeof AdminSocialRoute
   '/admin/submissions': typeof AdminSubmissionsRoute
@@ -111,6 +125,8 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/packages': typeof AdminPackagesRoute
   '/admin/photos': typeof AdminPhotosRoute
+  '/admin/process': typeof AdminProcessRoute
+  '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/social': typeof AdminSocialRoute
   '/admin/submissions': typeof AdminSubmissionsRoute
@@ -127,6 +143,8 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/packages': typeof AdminPackagesRoute
   '/admin/photos': typeof AdminPhotosRoute
+  '/admin/process': typeof AdminProcessRoute
+  '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/social': typeof AdminSocialRoute
   '/admin/submissions': typeof AdminSubmissionsRoute
@@ -144,6 +162,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/packages'
     | '/admin/photos'
+    | '/admin/process'
+    | '/admin/services'
     | '/admin/settings'
     | '/admin/social'
     | '/admin/submissions'
@@ -158,6 +178,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/packages'
     | '/admin/photos'
+    | '/admin/process'
+    | '/admin/services'
     | '/admin/settings'
     | '/admin/social'
     | '/admin/submissions'
@@ -173,6 +195,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/packages'
     | '/admin/photos'
+    | '/admin/process'
+    | '/admin/services'
     | '/admin/settings'
     | '/admin/social'
     | '/admin/submissions'
@@ -245,6 +269,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/services': {
+      id: '/admin/services'
+      path: '/services'
+      fullPath: '/admin/services'
+      preLoaderRoute: typeof AdminServicesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/process': {
+      id: '/admin/process'
+      path: '/process'
+      fullPath: '/admin/process'
+      preLoaderRoute: typeof AdminProcessRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/photos': {
       id: '/admin/photos'
       path: '/photos'
@@ -289,6 +327,8 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPackagesRoute: typeof AdminPackagesRoute
   AdminPhotosRoute: typeof AdminPhotosRoute
+  AdminProcessRoute: typeof AdminProcessRoute
+  AdminServicesRoute: typeof AdminServicesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSocialRoute: typeof AdminSocialRoute
   AdminSubmissionsRoute: typeof AdminSubmissionsRoute
@@ -302,6 +342,8 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminPackagesRoute: AdminPackagesRoute,
   AdminPhotosRoute: AdminPhotosRoute,
+  AdminProcessRoute: AdminProcessRoute,
+  AdminServicesRoute: AdminServicesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSocialRoute: AdminSocialRoute,
   AdminSubmissionsRoute: AdminSubmissionsRoute,

@@ -1,11 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useInView,
+  useScroll,
+  useTransform,
+  type Variants,
+} from "framer-motion";
 import {
   Aperture,
   ArrowDown,
   ArrowUpRight,
+  Award,
   Calendar,
   Camera,
   ChevronLeft,
@@ -19,9 +27,7 @@ import {
   MessageCircle,
   Phone,
   Play,
-  Sparkles,
   Star,
-  Youtube,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,312 +37,269 @@ import {
   heroSlidesQuery,
   photosQuery,
   publicPackagesQuery,
+  publicProcessStepsQuery,
+  publicServicesQuery,
   publicTestimonialsQuery,
   socialLinksQuery,
   submitContactForm,
 } from "@/lib/queries";
-import type { Photo as DbPhoto, WorkCategory } from "@/lib/types";
+import type { Photo, WorkCategory } from "@/lib/types";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useSeoMeta } from "@/hooks/use-seo-meta";
 import { useThemeApplicator } from "@/hooks/use-theme-applicator";
 
-import portrait from "@/assets/portrait.png";
-import uPortraitBw from "@/assets/work-portrait-bw.jpg";
-import uHandsTattoo from "@/assets/work-hands-tattoo.jpg";
-import uSaree from "@/assets/work-saree-portrait.jpg";
-import uWeddingCouple from "@/assets/work-wedding-couple.jpg";
-import uCoupleCar from "@/assets/work-couple-car.png";
 
 export const Route = createFileRoute("/")({ component: Index });
 export default Index;
 
-// ─── Shared framer-motion variants ─────────────────────────────────────────
-const cardContainer: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
-};
-const cardItem: Variants = {
-  hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.55 } },
-};
+// ─── Motion variants ─────────────────────────────────────────────────────────
+const ease = [0.16, 1, 0.3, 1] as const;
+
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.65 } },
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.85, ease } },
+};
+const fadeIn: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.7 } },
+};
+const stagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.13, delayChildren: 0.05 } },
+};
+const slideRight: Variants = {
+  hidden: { opacity: 0, x: -50 },
+  visible: { opacity: 1, x: 0, transition: { duration: 1, ease } },
+};
+const slideLeft: Variants = {
+  hidden: { opacity: 0, x: 50 },
+  visible: { opacity: 1, x: 0, transition: { duration: 1, ease } },
+};
+const scaleIn: Variants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.85, ease } },
 };
 
-const PHOTOS_PREVIEW_LIMIT = 10;
+const PHOTOS_PREVIEW_LIMIT = 9;
 
-const services = [
-  {
-    icon: Heart,
-    name: "Wedding Narratives",
-    desc: "Emotion-first frames shaped around intimacy, gestures, and atmosphere instead of staged perfection.",
-    price: "Ceremony / couple / detail work",
-  },
-  {
-    icon: Camera,
-    name: "Portrait Language",
-    desc: "Portraits built on mood, posture, texture, and light so every image carries personality.",
-    price: "Editorial / personal / studio",
-  },
-  {
-    icon: Calendar,
-    name: "Live Energy",
-    desc: "Fast-moving scenes captured with rhythm and clarity while keeping the emotional pulse of the room.",
-    price: "Events / performances / moments",
-  },
-];
-
-const processSteps = [
-  ["01", "See", "Every portfolio starts with observation: expression, stillness, space, and the exact moment light becomes part of the story."],
-  ["02", "Shape", "The frame is directed with restraint so the subject still feels real while the image feels intentional and cinematic."],
-  ["03", "Refine", "Color, contrast, and sequencing are polished so the final body of work feels cohesive, authored, and memorable."],
-];
-
-function useReveal() {
-  useEffect(() => {
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("in");
-            io.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.15 },
-    );
-
-    const observe = (root: Element | Document) => {
-      (root instanceof Element ? root.querySelectorAll(".reveal") : root.querySelectorAll(".reveal"))
-        .forEach((el) => io.observe(el));
-    };
-
-    observe(document);
-
-    // Watch for .reveal elements added after initial render (e.g. async data loading)
-    const mo = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType !== Node.ELEMENT_NODE) return;
-          const el = node as Element;
-          if (el.classList?.contains("reveal")) io.observe(el);
-          el.querySelectorAll?.(".reveal").forEach((child) => io.observe(child));
-        });
-      });
-    });
-    mo.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      io.disconnect();
-      mo.disconnect();
-    };
-  }, []);
+// ─── Split-text reveal (per-character stagger) ────────────────────────────────
+function SplitText({
+  text,
+  delay = 0,
+  duration = 0.78,
+  gap = 0.048,
+  className,
+}: {
+  text: string;
+  delay?: number;
+  duration?: number;
+  gap?: number;
+  className?: string;
+}) {
+  return (
+    <span className={`inline-flex ${className ?? ""}`} aria-label={text}>
+      {Array.from(text).map((char, i) => (
+        <span key={i} style={{ overflow: "hidden", display: "inline-block", lineHeight: "inherit" }}>
+          <motion.span
+            style={{ display: "inline-block" }}
+            className={char === "'" ? "text-gold" : ""}
+            initial={{ y: "110%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration, delay: delay + i * gap, ease }}
+          >
+            {char === " " ? " " : char}
+          </motion.span>
+        </span>
+      ))}
+    </span>
+  );
 }
 
-function useLoader() {
-  const [progress, setProgress] = useState(0);
-  const [visible, setVisible] = useState(true);
+// ─── Icon map for service icons stored as strings ─────────────────────────────
+const ICON_MAP: Record<string, React.FC<{ className?: string; strokeWidth?: number }>> = {
+  Heart, Camera, Calendar, Star, Aperture,
+  Award: Star, Image: Camera, Film: Camera, Sun: Star, Flower2: Heart,
+};
+
+// ─── Animated stat counter ────────────────────────────────────────────────────
+function StatItem({ num, suffix, label }: { num: number; suffix: string; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setProgress((value) => {
-        if (value >= 100) return 100;
-        const next = Math.min(100, value + (value < 60 ? 7 : value < 85 ? 4 : 2));
-        return next;
-      });
-    }, 70);
-
-    const finish = window.setTimeout(() => {
-      window.clearInterval(timer);
-      setProgress(100);
-      window.setTimeout(() => setVisible(false), 650);
-    }, 2100);
-
-    return () => {
-      window.clearInterval(timer);
-      window.clearTimeout(finish);
+    if (!inView) return;
+    let start: number | null = null;
+    const dur = 1800;
+    let raf: number;
+    const tick = (now: number) => {
+      if (!start) start = now;
+      const p = Math.min((now - start) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(eased * num));
+      if (p < 1) raf = requestAnimationFrame(tick);
     };
-  }, []);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [inView, num]);
 
-  return { progress, visible };
+  return (
+    <div ref={ref} className="flex flex-col items-center py-12 text-center">
+      <span className="font-display text-6xl leading-none text-gold md:text-7xl">
+        {display}{suffix}
+      </span>
+      <span className="mt-3 text-[9px] uppercase tracking-[0.5em] text-cream/45">{label}</span>
+    </div>
+  );
 }
 
+// ─── Custom cursor ────────────────────────────────────────────────────────────
 function CustomCursor() {
   const dot = useRef<HTMLDivElement>(null);
   const ring = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    let rx = 0;
-    let ry = 0;
-    let x = 0;
-    let y = 0;
-    let raf = 0;
-
+    let rx = 0, ry = 0, x = 0, y = 0, raf = 0;
     const move = (e: MouseEvent) => {
-      x = e.clientX;
-      y = e.clientY;
-      if (dot.current) {
-        dot.current.style.transform = `translate3d(${x - 4}px, ${y - 4}px, 0)`;
-      }
+      x = e.clientX; y = e.clientY;
+      if (dot.current) dot.current.style.transform = `translate3d(${x - 4}px,${y - 4}px,0)`;
     };
-
     const tick = () => {
-      rx += (x - rx) * 0.18;
-      ry += (y - ry) * 0.18;
-      if (ring.current) {
-        ring.current.style.transform = `translate3d(${rx - 18}px, ${ry - 18}px, 0)`;
-      }
+      rx += (x - rx) * 0.14; ry += (y - ry) * 0.14;
+      if (ring.current) ring.current.style.transform = `translate3d(${rx - 16}px,${ry - 16}px,0)`;
       raf = requestAnimationFrame(tick);
     };
-
-    window.addEventListener("mousemove", move);
+    window.addEventListener("mousemove", move, { passive: true });
     tick();
-
-    return () => {
-      window.removeEventListener("mousemove", move);
-      cancelAnimationFrame(raf);
-    };
+    return () => { window.removeEventListener("mousemove", move); cancelAnimationFrame(raf); };
   }, []);
 
   return (
     <>
-      <div
-        ref={dot}
-        className="pointer-events-none fixed left-0 top-0 z-[100] hidden h-2 w-2 rounded-full md:block"
-        style={{ background: "var(--gold)" }}
-        aria-hidden
-      />
-      <div
-        ref={ring}
-        className="pointer-events-none fixed left-0 top-0 z-[99] hidden h-9 w-9 rounded-full border md:block"
-        style={{ borderColor: "color-mix(in oklab, var(--gold) 60%, transparent)" }}
-        aria-hidden
-      />
+      <div ref={dot} className="pointer-events-none fixed left-0 top-0 z-[110] hidden h-2 w-2 rounded-full bg-[var(--gold)] md:block" aria-hidden />
+      <div ref={ring} className="pointer-events-none fixed left-0 top-0 z-[109] hidden h-8 w-8 rounded-full border border-[rgba(201,169,110,0.55)] md:block" aria-hidden />
     </>
   );
 }
 
-function Loader({ progress, visible, siteName }: { progress: number; visible: boolean; siteName?: string }) {
-  const messages = useMemo(
-    () => ["Calibrating light", "Framing emotion", "Building the experience"],
-    [],
-  );
+// ─── Loader ───────────────────────────────────────────────────────────────────
+function useLoader() {
+  const [progress, setProgress] = useState(0);
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((v) => {
+        if (v >= 100) return 100;
+        return Math.min(100, v + (v < 60 ? 8 : v < 85 ? 4 : 2));
+      });
+    }, 65);
+    const finish = setTimeout(() => {
+      clearInterval(timer);
+      setProgress(100);
+      setTimeout(() => setVisible(false), 700);
+    }, 2000);
+    return () => { clearInterval(timer); clearTimeout(finish); };
+  }, []);
+  return { progress, visible };
+}
+
+function Loader({ progress, visible }: { progress: number; visible: boolean }) {
+  const messages = ["Calibrating light", "Framing emotion", "Building the experience"];
   const step = Math.min(messages.length - 1, Math.floor(progress / 34));
 
   return (
-    <div
-      className={`fixed inset-0 z-[300] overflow-hidden bg-[var(--espresso)] transition-all duration-700 ${
-        visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-      }`}
-      aria-hidden={!visible}
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(234,196,121,0.16),transparent_38%),radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.1),transparent_22%),linear-gradient(180deg,rgba(14,9,5,0.4),rgba(14,9,5,0.96))]" />
-      <div className="absolute inset-0 grid-pattern opacity-30" />
-      <div className="absolute left-1/2 top-1/2 h-[42rem] w-[42rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-gold/10 blur-3xl" />
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          exit={{ opacity: 0, transition: { duration: 0.9, ease: "easeInOut" } }}
+          className="fixed inset-0 z-[300] flex flex-col bg-[var(--espresso)]"
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_50%_35%,rgba(201,169,110,0.15),transparent)]" />
+          <div className="absolute inset-0 grid-pattern opacity-15" />
 
-      <div className="relative flex h-full flex-col justify-between px-6 py-8 md:px-10 md:py-10">
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.45em] text-cream/55">
-          <span className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-gold pulse-soft" />
-            {siteName ?? "Dopamine"} loading
-          </span>
-          <span>Sri Lanka</span>
-        </div>
+          <div className="relative flex flex-1 flex-col items-center justify-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              className="mb-10 flex h-20 w-20 items-center justify-center rounded-full border border-gold/25"
+            >
+              <Aperture className="h-9 w-9 text-gold" strokeWidth={0.9} />
+            </motion.div>
 
-        <div className="mx-auto flex max-w-4xl flex-1 flex-col items-center justify-center text-center">
-          <div className="loader-aperture mb-10 flex h-28 w-28 items-center justify-center rounded-full border border-gold/30">
-            <Aperture className="h-12 w-12 text-gold" strokeWidth={1} />
-          </div>
-          <p className="text-[10px] uppercase tracking-[0.6em] text-gold/80">Visual story in motion</p>
-          <h1 className="mt-6 max-w-3xl font-display text-5xl leading-none text-cream md:text-7xl lg:text-[7.5rem]">
-            {siteName ?? "Dopamine"},
-            <br />
-            <span className="italic text-gold/95">First impression matters most...</span>
-          </h1>
-          <p className="mt-8 text-sm tracking-[0.28em] uppercase text-cream/55">{messages[step]}</p>
-        </div>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.9 }}
+              className="text-center"
+            >
+              <p className="text-[9px] uppercase tracking-[0.6em] text-gold/60">Visual story in motion</p>
+              <h1 className="mt-4 font-display text-7xl leading-none text-cream md:text-9xl">
+                <SplitText text="Lov'Ceylon" delay={0.3} gap={0.06} duration={0.85} />
+              </h1>
+              <p className="mt-2 text-[8px] uppercase tracking-[0.5em] text-cream/30">Photography · Sri Lanka · Japan</p>
+            </motion.div>
 
-        <div className="mx-auto w-full max-w-5xl">
-          <div className="flex items-end justify-between text-[10px] uppercase tracking-[0.35em] text-cream/55">
-            <span>Loading portfolio experience</span>
-            <span>{String(progress).padStart(2, "0")}%</span>
+            <motion.p
+              key={step}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-12 text-[9px] uppercase tracking-[0.45em] text-cream/35"
+            >
+              {messages[step]}
+            </motion.p>
           </div>
-          <div className="mt-3 h-[2px] overflow-hidden bg-cream/10">
-            <div
-              className="h-full bg-[linear-gradient(90deg,var(--gold),#fff0c7,var(--gold))] transition-[width] duration-300 ease-out"
-              style={{ width: `${progress}%` }}
-            />
+
+          <div className="relative px-8 pb-10">
+            <div className="mb-2 flex justify-between text-[9px] uppercase tracking-[0.4em] text-cream/25">
+              <span>Loading portfolio</span>
+              <span>{String(progress).padStart(2, "0")}%</span>
+            </div>
+            <div className="h-px overflow-hidden bg-white/8">
+              <motion.div
+                animate={{ scaleX: progress / 100 }}
+                transition={{ ease: "easeOut" }}
+                className="h-full origin-left bg-gradient-to-r from-gold via-[#f2e0a0] to-gold"
+              />
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
+// ─── Nav ──────────────────────────────────────────────────────────────────────
 function Nav() {
   const { data: settings } = useSiteSettings();
+  const whatsapp = settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619";
   const [scrolled, setScrolled] = useState(false);
-  const [logoError, setLogoError] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    window.addEventListener("scroll", onScroll);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [mobileOpen]);
+  }, [open]);
 
-  const links = [
-    ["About", "#about"],
-    ["Work", "#work"],
-    ["Story", "#story"],
-    ["Strengths", "#services"],
-    ["Packages", "#packages"],
-    ["Contact", "#contact"],
-  ];
-
-  const siteName = settings?.site_name ?? "Dopamine";
+  const links = [["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]];
 
   return (
     <>
-      <header
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-          scrolled ? "border-b border-border bg-[var(--espresso)]/90 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl" : "bg-transparent"
-        }`}
+      <motion.header
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 2.2, duration: 0.9, ease }}
+        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${scrolled ? "border-b border-white/[0.07] bg-[rgba(14,8,4,0.9)] backdrop-blur-xl" : "bg-transparent"}`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <a href="#top" className="group flex items-center gap-3 text-cream drop-shadow-[0_1px_8px_rgba(0,0,0,0.7)]">
-            {settings?.logo_url && !logoError ? (
-              <img
-                src={settings.logo_url}
-                alt={siteName}
-                className="h-8 w-auto object-contain"
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <>
-                <Aperture className="h-5 w-5 text-gold transition-transform duration-700 group-hover:rotate-90" strokeWidth={1.4} />
-                <span className="font-display text-2xl tracking-wide">{siteName}</span>
-              </>
-            )}
-          </a>
-
-          {/* Desktop nav */}
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:py-5">
           <nav className="hidden items-center gap-8 md:flex">
             {links.map(([label, href]) => (
-              <a
-                key={label}
-                href={href}
-                className="story-link text-[11px] uppercase tracking-[0.34em] text-cream/90 drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)] transition-colors hover:text-gold"
-              >
+              <a key={label} href={href} className="story-link text-[10px] uppercase tracking-[0.38em] text-cream/70 transition-colors hover:text-gold">
                 {label}
               </a>
             ))}
@@ -344,80 +307,65 @@ function Nav() {
 
           <div className="flex items-center gap-3">
             <a
-              href="#contact"
-              className="hidden border border-gold/60 bg-[rgba(14,8,4,0.35)] px-4 py-2 text-[10px] uppercase tracking-[0.32em] text-gold backdrop-blur-sm transition-all hover:bg-gold hover:text-[var(--espresso)] md:inline-flex"
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hi Lov'Ceylon! I'd like to book a photography session.")}`}
+              target="_blank" rel="noreferrer"
+              className="hidden border border-gold/45 bg-[rgba(14,8,4,0.3)] px-5 py-2 text-[9px] uppercase tracking-[0.4em] text-gold backdrop-blur-sm transition-all hover:bg-gold hover:text-[var(--espresso)] md:inline-flex"
             >
-              Contact
+              Book Now
             </a>
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileOpen(true)}
-              aria-label="Open menu"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-cream backdrop-blur-sm transition-colors hover:border-gold hover:text-gold md:hidden"
-            >
+            <button onClick={() => setOpen(true)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center border border-white/20 text-cream transition-colors hover:border-gold hover:text-gold md:hidden">
               <Menu className="h-4 w-4" />
             </button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Mobile full-screen overlay menu */}
       <AnimatePresence>
-        {mobileOpen && (
+        {open && (
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className="fixed inset-0 z-[200] flex flex-col bg-[var(--espresso)] px-8 py-10 md:hidden"
+            transition={{ type: "spring", damping: 30, stiffness: 280 }}
+            className="fixed inset-0 z-[200] flex flex-col bg-[var(--espresso)] px-8 py-8 md:hidden"
           >
-            {/* Close + logo row */}
-            <div className="flex items-center justify-between">
-              <a
-                href="#top"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2.5 text-cream"
-              >
-                <Aperture className="h-5 w-5 text-gold" strokeWidth={1.4} />
-                <span className="font-display text-xl tracking-wide">{siteName}</span>
-              </a>
-              <button
-                onClick={() => setMobileOpen(false)}
-                aria-label="Close menu"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-cream"
-              >
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(201,169,110,0.1),transparent)]" />
+            <div className="relative flex items-center justify-between">
+              <div className="flex flex-col items-start leading-none">
+                <span className="font-display text-xl text-cream">Lov<span className="text-gold">&#39;</span>Ceylon</span>
+                <span className="mt-0.5 text-[7px] uppercase tracking-[0.5em] text-gold/65">Photography</span>
+              </div>
+              <button onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center border border-white/20 text-cream">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Nav links */}
-            <nav className="mt-14 flex flex-col gap-2">
+            <nav className="relative mt-16 flex flex-col">
               {links.map(([label, href], i) => (
                 <motion.a
-                  key={label}
-                  href={href}
+                  key={label} href={href}
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.08 + i * 0.06, duration: 0.4 }}
-                  onClick={() => setMobileOpen(false)}
-                  className="group flex items-center justify-between border-b border-white/8 py-5"
+                  transition={{ delay: 0.04 + i * 0.07, duration: 0.5 }}
+                  onClick={() => setOpen(false)}
+                  className="group flex items-center justify-between border-b border-white/[0.06] py-6"
                 >
                   <span className="font-display text-4xl text-cream transition-colors group-hover:text-gold">{label}</span>
-                  <ArrowUpRight className="h-5 w-5 text-gold/50 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-gold" />
+                  <ArrowUpRight className="h-5 w-5 text-gold/35 transition-all group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-gold" />
                 </motion.a>
               ))}
             </nav>
 
-            {/* Bottom CTA */}
-            <div className="mt-auto">
+            <div className="relative mt-auto">
               <a
-                href="#contact"
-                onClick={() => setMobileOpen(false)}
-                className="block w-full bg-gold py-4 text-center text-[11px] uppercase tracking-[0.32em] text-[var(--espresso)]"
+                href={`https://wa.me/${whatsapp}`}
+                target="_blank" rel="noreferrer"
+                onClick={() => setOpen(false)}
+                className="block w-full bg-gold py-4 text-center text-[10px] uppercase tracking-[0.4em] text-[var(--espresso)]"
               >
-                Get in touch
+                Book a Session
               </a>
-              <p className="mt-6 text-center text-[10px] uppercase tracking-[0.4em] text-cream/30">{siteName} · Sri Lanka</p>
+              <p className="mt-5 text-center text-[8px] uppercase tracking-[0.5em] text-cream/20">Lov<span className="text-gold/60">&#39;</span>Ceylon · Sri Lanka · Japan</p>
             </div>
           </motion.div>
         )}
@@ -426,188 +374,209 @@ function Nav() {
   );
 }
 
-const WHATSAPP_NUMBER = "94716694353";
-
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 function Hero() {
   const { data: settings } = useSiteSettings();
   const { data: slides = [] } = useQuery(heroSlidesQuery());
   const [current, setCurrent] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [ready, setReady] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
 
-  const siteName = settings?.site_name ?? "Dopamine";
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "28%"]);
+  const contentY = useTransform(scrollYProgress, [0, 1], ["0%", "12%"]);
 
-  // Build slide image list — fall back to settings background if no DB slides
-  const bgImages: string[] = slides.length > 0
+  const bgImages = slides.length > 0
     ? slides.map((s) => s.image_url)
-    : [settings?.hero_background_url ?? uCoupleCar];
+    : settings?.hero_background_url
+      ? [settings.hero_background_url]
+      : [];
 
-  // Auto-advance
   useEffect(() => {
-    if (bgImages.length <= 1 || paused) return;
-    timerRef.current = setInterval(() => setCurrent((i) => (i + 1) % bgImages.length), 5000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [bgImages.length, paused, current]);
+    const t = setTimeout(() => setReady(true), 2200);
+    return () => clearTimeout(t);
+  }, []);
 
-  const goTo = (i: number) => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setCurrent(i);
-  };
-
-  const bookMsg = encodeURIComponent(
-    `Hi ${siteName}! I found your portfolio and I'd like to book a photography session. Could you please share available dates, packages, and pricing? Thank you!`,
-  );
-  const waMsg = encodeURIComponent(
-    `Hi ${siteName}! I'm interested in your photography services. Could you share more details about packages and availability?`,
-  );
+  useEffect(() => {
+    if (bgImages.length <= 1) return;
+    const t = setInterval(() => setCurrent((i) => (i + 1) % bgImages.length), 6000);
+    return () => clearInterval(t);
+  }, [bgImages.length]);
 
   return (
-    <section
-      id="top"
-      className="relative min-h-screen overflow-hidden"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      {/* Slides — crossfade */}
-      {bgImages.map((url, i) => (
-        <div
-          key={url}
-          className={`absolute inset-0 transition-opacity duration-[1200ms] ease-in-out ${i === current ? "opacity-100" : "opacity-0"}`}
-        >
-          <div
-            className={`absolute inset-0 bg-cover bg-center ${i === current ? "ken-burns" : ""}`}
-            style={{ backgroundImage: `url(${url})` }}
-          />
-        </div>
+    <section id="top" ref={heroRef} className="relative min-h-screen overflow-hidden bg-[var(--espresso)]">
+      {/* Parallax background */}
+      <motion.div className="absolute inset-0 will-change-transform" style={{ y: bgY }}>
+        {bgImages.map((url, i) => (
+          <motion.div
+            key={url}
+            animate={{ opacity: i === current ? 1 : 0 }}
+            transition={{ duration: 1.6, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <div
+              className={`absolute inset-0 scale-110 bg-cover bg-center ${i === current ? "ken-burns" : ""}`}
+              style={{ backgroundImage: `url(${url})` }}
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Gradient */}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,8,4,0.52)_0%,rgba(14,8,4,0.08)_28%,rgba(14,8,4,0.08)_52%,rgba(14,8,4,0.72)_78%,rgba(14,8,4,0.97)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_50%,rgba(14,8,4,0.5)_0%,transparent_100%)]" />
+
+      {/* Frame */}
+      <div className="pointer-events-none absolute inset-x-5 bottom-5 top-20 z-[1] border border-[rgba(139,107,61,0.4)] md:inset-x-10 md:bottom-10 md:top-24" />
+      {/* Corner marks */}
+      {[
+        "left-5 top-20 border-l border-t md:left-10 md:top-24",
+        "right-5 top-20 border-r border-t md:right-10 md:top-24",
+        "bottom-5 left-5 border-b border-l md:bottom-10 md:left-10",
+        "bottom-5 right-5 border-b border-r md:bottom-10 md:right-10",
+      ].map((cls, i) => (
+        <div key={i} className={`pointer-events-none absolute z-[2] h-6 w-6 border-gold/60 ${cls}`} />
       ))}
 
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,8,4,0.45)_0%,rgba(14,8,4,0.12)_25%,rgba(14,8,4,0.12)_60%,rgba(14,8,4,0.68)_82%,rgba(14,8,4,0.95)_100%)]" />
-
-      {/* Frame border */}
-      <div className="pointer-events-none absolute inset-x-4 bottom-4 top-22 z-[1] border border-[var(--bronze)]/55 md:inset-x-6 md:bottom-6 md:top-24 lg:inset-x-8 lg:bottom-8 lg:top-26" />
-
-      {/* Content */}
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-between px-6 pb-14 pt-24 md:pb-20">
-
-        {/* Center block — logo + heading, floating over photo */}
-        <div className="relative flex flex-1 flex-col items-center justify-center gap-5 text-center">
-          {/* Soft radial vignette — not a box, just darkens behind text */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_65%_at_50%_50%,rgba(14,8,4,0.55)_0%,transparent_100%)]" />
-
-          {/* Logo mark */}
-          <div className="relative flex flex-col items-center gap-2">
-            {settings?.logo_url ? (
-              <img src={settings.logo_url} alt={siteName} className="h-14 w-auto object-contain drop-shadow-[0_2px_16px_rgba(0,0,0,0.8)]" />
-            ) : (
-              <>
-                <Aperture className="h-12 w-12 text-gold" strokeWidth={1.2} style={{ filter: "drop-shadow(0 0 14px rgba(212,171,95,0.7)) drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }} />
-                <span className="font-display text-4xl tracking-wide text-cream drop-shadow-[0_2px_24px_rgba(0,0,0,0.9)] md:text-5xl">
-                  {siteName}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Badge */}
-          <div className="relative inline-flex items-center gap-2.5 rounded-full border border-gold/40 bg-[rgba(14,8,4,0.6)] px-4 py-2 text-[10px] uppercase tracking-[0.38em] text-gold backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold pulse-soft" />
-            Portfolio of a Sri Lankan visual storyteller
-          </div>
-
-          {/* Heading */}
-          <h1 className="relative max-w-xl font-display text-3xl leading-[0.96] text-cream drop-shadow-[0_2px_28px_rgba(0,0,0,0.95)] md:text-5xl lg:text-[3.4rem]">
-            {settings?.hero_heading ?? "Frames that reveal how the photographer sees."}
-          </h1>
-          {settings?.hero_subtext && (
-            <p className="relative max-w-md text-sm leading-relaxed text-cream/80 drop-shadow-[0_1px_10px_rgba(0,0,0,0.9)]">
-              {settings.hero_subtext}
-            </p>
-          )}
-
-          {/* CTA buttons */}
-          <div className="relative mt-1 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="#about"
-              className="group inline-flex items-center gap-2.5 bg-gold px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-[var(--espresso)] shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 hover:brightness-110"
+      {/* Hero content */}
+      <motion.div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pb-20 pt-28" style={{ y: contentY }}>
+        <AnimatePresence>
+          {ready && (
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={stagger}
+              className="flex flex-col items-center gap-0 text-center"
             >
-              Discover the story
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </a>
+              {/* Est line */}
+              <motion.p
+                variants={fadeIn}
+                className="mb-7 text-[9px] uppercase tracking-[0.6em] text-gold/65"
+              >
+                Est. 2014 · Sri Lanka · Japan
+              </motion.p>
 
-            <a
-              href={`tel:+${WHATSAPP_NUMBER}`}
-              className="group inline-flex items-center gap-2 border border-white/50 bg-[rgba(14,8,4,0.55)] px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-cream shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-gold/70 hover:text-gold"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              Call now
-            </a>
-
-            <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${waMsg}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group inline-flex items-center gap-2 border border-white/50 bg-[rgba(14,8,4,0.55)] px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-cream shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-[#25d366]/70 hover:text-[#25d366]"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              WhatsApp
-            </a>
-
-            <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${bookMsg}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group inline-flex items-center gap-2 border border-gold/60 bg-[rgba(212,171,95,0.2)] px-6 py-3.5 text-[11px] uppercase tracking-[0.32em] text-gold shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-gold hover:text-[var(--espresso)]"
-            >
-              Book now
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </a>
-          </div>
-        </div>
-
-        {/* Slide dots + scroll hint */}
-        <div className="flex flex-col items-center gap-5">
-          {bgImages.length > 1 && (
-            <div className="flex items-center gap-2">
-              {bgImages.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => goTo(i)}
-                  aria-label={`Go to slide ${i + 1}`}
-                  className={`rounded-full transition-all duration-300 ${
-                    i === current
-                      ? "h-2 w-6 bg-gold"
-                      : "h-2 w-2 bg-white/30 hover:bg-white/60"
-                  }`}
+              {/* Brand name — per-character stagger reveal */}
+              <div className="relative">
+                <h1 className="font-display text-[clamp(4.5rem,13vw,10rem)] leading-none tracking-tight text-cream drop-shadow-[0_4px_48px_rgba(0,0,0,0.9)]">
+                  <SplitText text="Lov'Ceylon" delay={0.15} gap={0.055} duration={0.9} />
+                </h1>
+                {/* Gold shimmer sweep after text settles */}
+                <motion.span
+                  aria-hidden
+                  initial={{ x: "-115%", skewX: -12 }}
+                  animate={{ x: "230%" }}
+                  transition={{ duration: 1.05, delay: 1.05, ease }}
+                  className="pointer-events-none absolute inset-0 block"
+                  style={{ background: "linear-gradient(90deg,transparent 10%,rgba(201,169,110,0.55) 50%,transparent 90%)" }}
                 />
-              ))}
-            </div>
+              </div>
+
+              {/* Animated line */}
+              <div className="relative my-5 w-full max-w-[280px] overflow-hidden">
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 1.1, delay: 0.55, ease }}
+                  className="h-px origin-left bg-gradient-to-r from-transparent via-gold to-transparent"
+                />
+              </div>
+
+              {/* Wedding Photography */}
+              <div className="overflow-hidden">
+                <motion.p
+                  initial={{ y: "105%" }}
+                  animate={{ y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.65, ease }}
+                  className="text-[11px] uppercase tracking-[0.6em] text-cream/85"
+                >
+                  Wedding Photography
+                </motion.p>
+              </div>
+
+              {/* Specialty separator */}
+              <motion.div
+                variants={fadeIn}
+                transition={{ delay: 0.85 }}
+                className="mt-5 flex w-full max-w-[340px] items-center gap-4"
+              >
+                <span className="h-px flex-1 bg-gold/28" />
+                <span className="text-[9px] uppercase tracking-[0.42em] text-gold/65">Wedding · Fashion · Portrait</span>
+                <span className="h-px flex-1 bg-gold/28" />
+              </motion.div>
+
+              {/* Location */}
+              <motion.p
+                variants={fadeIn}
+                transition={{ delay: 1.0 }}
+                className="mt-3 text-[8px] uppercase tracking-[0.58em] text-cream/40"
+              >
+                Sri Lanka · Japan
+              </motion.p>
+
+              {/* CTAs */}
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 1.2, ease }}
+                className="mt-10 flex flex-wrap items-center justify-center gap-4"
+              >
+                <a
+                  href="#packages"
+                  className="group inline-flex items-center gap-2 bg-gold px-8 py-3.5 text-[10px] uppercase tracking-[0.42em] text-[var(--espresso)] shadow-[0_6px_30px_rgba(201,169,110,0.4)] transition-all hover:-translate-y-0.5 hover:brightness-110"
+                >
+                  View Packages
+                  <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </a>
+                <a
+                  href="#work"
+                  className="group inline-flex items-center gap-2 border border-white/38 bg-[rgba(14,8,4,0.38)] px-8 py-3.5 text-[10px] uppercase tracking-[0.42em] text-cream backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-gold/55 hover:text-gold"
+                >
+                  Our Gallery
+                  <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </a>
+              </motion.div>
+            </motion.div>
           )}
-          <a href="#about" aria-label="Scroll down" className="flex flex-col items-center gap-1.5 text-gold/70 transition-colors hover:text-gold">
-            <span className="text-[9px] uppercase tracking-[0.4em]">Scroll</span>
-            <ArrowDown className="h-4 w-4 animate-bounce" />
-          </a>
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Slide indicators */}
+      {bgImages.length > 1 && (
+        <div className="absolute bottom-12 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5">
+          {bgImages.map((_, i) => (
+            <button key={i} onClick={() => setCurrent(i)} className={`rounded-full transition-all duration-500 ${i === current ? "h-1.5 w-8 bg-gold" : "h-1.5 w-1.5 bg-white/22 hover:bg-white/45"}`} />
+          ))}
         </div>
-      </div>
+      )}
+
+      {/* Scroll cue */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2.5, duration: 1 }}
+        className="absolute bottom-10 right-8 z-10 flex flex-col items-center gap-2"
+      >
+        <span className="text-[7px] uppercase tracking-[0.6em] text-cream/30 [writing-mode:vertical-rl]">Scroll</span>
+        <motion.div animate={{ y: [0, 7, 0] }} transition={{ duration: 1.7, repeat: Infinity, ease: "easeInOut" }}>
+          <ArrowDown className="h-3 w-3 text-gold/40" />
+        </motion.div>
+      </motion.div>
     </section>
   );
 }
 
-function Marquee() {
-  const { data: settings } = useSiteSettings();
-  const defaultWords = ["Portraits", "Weddings", "Events", "Editorial", "Mood", "Light"];
-  const words = settings?.marquee_words
-    ? settings.marquee_words.split(",").map((w) => w.trim()).filter(Boolean)
-    : [settings?.site_name ?? "Dopamine", ...defaultWords];
-  const items = [...words, ...words, ...words];
-
+// ─── Marquee ──────────────────────────────────────────────────────────────────
+function Marquee({ words }: { words?: string[] }) {
+  const base = words?.length ? words : ["Wedding", "Fashion", "Portrait", "Sri Lanka", "Japan", "Timeless", "Moments", "Love Stories"];
+  const repeated = [...base, ...base, ...base, ...base];
   return (
-    <div className="overflow-hidden border-y border-border bg-[var(--espresso)] py-6">
-      <div className="marquee-track gap-12">
-        {items.map((word, index) => (
-          <span key={`${word}-${index}`} className="flex items-center gap-12 font-display text-4xl italic text-cream md:text-6xl">
-            <span className={index % 2 === 0 ? "text-stroke" : "text-cream"}>{word}</span>
-            <Aperture className="h-6 w-6 shrink-0 text-gold" strokeWidth={1} />
+    <div className="relative overflow-hidden border-y border-gold/15 bg-[rgba(14,8,4,0.6)] py-3.5 backdrop-blur-sm">
+      <div className="marquee-track flex items-center">
+        {repeated.map((w, i) => (
+          <span key={i} className="flex shrink-0 items-center">
+            <span className="px-5 text-[9px] uppercase tracking-[0.45em] text-cream/50">{w}</span>
+            <span className="h-1 w-1 shrink-0 rounded-full bg-gold/40" />
           </span>
         ))}
       </div>
@@ -615,545 +584,404 @@ function Marquee() {
   );
 }
 
-function About() {
+// ─── Philosophy / Stats ───────────────────────────────────────────────────────
+function Philosophy() {
   const { data: settings } = useSiteSettings();
 
   const stats = [
-    [settings?.stat_1_value ?? "120+", settings?.stat_1_label ?? "Wedding stories told"],
-    [settings?.stat_2_value ?? "5K+", settings?.stat_2_label ?? "Portraits and frames delivered"],
-    [settings?.stat_3_value ?? "Island-wide", settings?.stat_3_label ?? "Available across Sri Lanka"],
+    {
+      raw: settings?.stat_1_value ?? "10+",
+      label: settings?.stat_1_label ?? "Years of Craft",
+    },
+    {
+      raw: settings?.stat_2_value ?? "500+",
+      label: settings?.stat_2_label ?? "Weddings Captured",
+    },
+    {
+      raw: settings?.stat_3_value ?? "2",
+      label: settings?.stat_3_label ?? "Countries",
+    },
   ];
 
   return (
-    <section id="about" className="relative overflow-hidden border-b border-border bg-[var(--espresso)] px-6 py-28 md:py-32">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,171,95,0.07),transparent_32%)]" />
-      <div className="relative mx-auto max-w-7xl">
-        <div className="grid gap-16 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+    <section className="relative overflow-hidden bg-[var(--espresso)] py-28 md:py-44">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_50%_at_50%_65%,rgba(201,169,110,0.06),transparent)]" />
 
-          <div className="reveal relative">
-            <div className="overflow-hidden rounded-[2.4rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.45)]">
-              <img
-                src={settings?.about_portrait_url ?? portrait}
-                alt={`${settings?.photographer_name ?? "Tharindu Viduranga"} — Founder, ${settings?.site_name ?? "Dopamine"}`}
-                className="h-[46rem] w-full object-cover object-top"
-                loading="eager"
-              />
-            </div>
-            <div className="absolute -bottom-5 left-6 glass-panel px-6 py-4 shadow-xl">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-gold">Founder / Visual Storyteller</p>
-              <p className="mt-1 font-display text-2xl text-cream">{settings?.photographer_name ?? "Tharindu Viduranga"}</p>
-            </div>
-          </div>
-
-          <div className="reveal pt-8 lg:pt-0">
-            <p className="mb-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-              <span className="h-px w-10 bg-gold" /> About
-            </p>
-            <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-6xl lg:text-7xl">
-              The eye behind
-              <br />
-              <span className="italic text-gold">{settings?.site_name ?? "Dopamine"}.</span>
-            </h2>
-            <p className="mt-8 max-w-lg text-base leading-relaxed text-cream/72 md:text-lg">
-              {settings?.about_text || "This portfolio is built to present the visual voice behind Dopamine: wedding stories, portraits, and event frames shaped with warmth, atmosphere, and a cinematic eye."}
-            </p>
-
-            <div className="mt-10 flex flex-wrap items-center gap-4">
-              <a
-                href="#work"
-                className="group inline-flex items-center gap-3 bg-gold px-7 py-4 text-[11px] uppercase tracking-[0.32em] text-[var(--espresso)] transition-transform duration-300 hover:-translate-y-0.5"
-              >
-                View portfolio
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-              </a>
-              <a
-                href="#story"
-                className="inline-flex items-center gap-3 border border-cream/20 bg-[rgba(255,255,255,0.04)] px-7 py-4 text-[11px] uppercase tracking-[0.32em] text-cream backdrop-blur-md transition-colors hover:border-gold/50 hover:text-gold"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" />
-                Meet the eye
-              </a>
-            </div>
-
-            <div className="mt-12 grid gap-4 sm:grid-cols-3">
-              {stats.map(([value, label]) => (
-                <div key={label} className="glass-panel px-5 py-5">
-                  <p className="font-display text-3xl text-gold">{value}</p>
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.28em] text-cream/60">{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Story() {
-  const { data: settings } = useSiteSettings();
-  return (
-    <section id="story" className="relative mx-auto max-w-7xl px-6 py-28 md:py-32">
-      <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div className="reveal">
-          <p className="mb-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-            <span className="h-px w-10 bg-gold" /> Story
-          </p>
-          <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl lg:text-8xl">
-            A portfolio
-            <br />
-            <span className="italic text-gold">built around photographic identity.</span>
-          </h2>
-        </div>
-        <p className="reveal max-w-md text-sm leading-relaxed text-cream/65 md:text-base">
-          Instead of reading like a studio homepage, this now behaves more like a curated presentation of authorship, taste, and range.
-        </p>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="reveal relative overflow-hidden rounded-[2rem] border border-white/10 bg-[var(--espresso)] p-3">
-          <img src={settings?.story_image_url ?? uSaree} alt="Saree portrait by lamplight" className="h-[32rem] w-full rounded-[1.5rem] object-cover md:h-[42rem]" loading="lazy" />
-          <div className="absolute inset-x-8 bottom-8 rounded-[1.4rem] border border-white/10 bg-[rgba(18,10,6,0.62)] p-6 backdrop-blur-xl">
-            <p className="text-[10px] uppercase tracking-[0.36em] text-gold">Signature mood</p>
-            <p className="mt-3 max-w-md font-display text-3xl leading-tight text-cream md:text-4xl">
-              Warm tones, patient composition, and frames that carry emotional gravity.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-5">
-          <div className="reveal glass-panel p-7 md:p-8">
-            <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.35em] text-gold">
-              <Sparkles className="h-4 w-4" />
-              Portfolio focus
-            </div>
-            <div className="mt-6 space-y-6">
-              {[
-                "The opening now introduces the photographer's point of view instead of pushing services first.",
-                "The strongest personal images are given hero treatment so talent is visible immediately.",
-                "The page rhythm feels curated, helping the viewer move through style, range, and signature mood.",
-              ].map((line) => (
-                <p key={line} className="border-b border-white/8 pb-6 text-sm leading-relaxed text-cream/72 last:border-b-0 last:pb-0">
-                  {line}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="reveal overflow-hidden rounded-[1.7rem] border border-white/10">
-              <img src={uPortraitBw} alt="Black and white portrait" className="h-[22rem] w-full object-cover" loading="lazy" />
-            </div>
-            <div className="reveal glass-panel flex flex-col justify-between p-7">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-gold">Visual identity</p>
-                <p className="mt-4 font-display text-3xl text-cream">Elegant, intimate, and shaped with clear authorship.</p>
-              </div>
-              <div className="mt-8 flex items-center gap-3 text-[10px] uppercase tracking-[0.35em] text-cream/50">
-                <Star className="h-4 w-4 text-gold" />
-                Built to present artistic voice
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Lightbox({
-  photos,
-  index,
-  onClose,
-  setIndex,
-}: {
-  photos: DbPhoto[];
-  index: number;
-  onClose: () => void;
-  setIndex: (value: number) => void;
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") setIndex((index + 1) % photos.length);
-      if (e.key === "ArrowLeft") setIndex((index - 1 + photos.length) % photos.length);
-    };
-
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [index, onClose, photos.length, setIndex]);
-
-  const photo = photos[index];
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(8,5,3,0.92)] px-5 backdrop-blur-xl animate-[fade-in_0.35s_ease-out]">
-      <button
-        onClick={onClose}
-        aria-label="Close"
-        className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-cream transition-colors hover:border-gold hover:text-gold md:right-8 md:top-8"
-      >
-        <X className="h-4 w-4" />
-      </button>
-      <button
-        onClick={() => setIndex((index - 1 + photos.length) % photos.length)}
-        aria-label="Previous"
-        className="absolute left-6 top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-cream transition-colors hover:border-gold hover:text-gold md:flex"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
-      <button
-        onClick={() => setIndex((index + 1) % photos.length)}
-        aria-label="Next"
-        className="absolute right-6 top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-cream transition-colors hover:border-gold hover:text-gold md:flex"
-      >
-        <ChevronRight className="h-5 w-5" />
-      </button>
-      <div className="max-h-[86vh] max-w-[92vw]">
-        <img src={photo.url} alt={photo.title} className="max-h-[78vh] max-w-[92vw] rounded-[1.6rem] object-contain shadow-2xl shadow-black/40" />
-        <div className="mt-4 flex flex-col gap-2 text-cream/75 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-display text-2xl italic text-gold">{photo.title}</p>
-            {photo.location ? (
-              <p className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.35em]">
-                <MapPin className="h-3.5 w-3.5" />
-                {photo.location}
-              </p>
-            ) : null}
-          </div>
-          <p className="text-[10px] uppercase tracking-[0.35em] text-cream/55">
-            {String(index + 1).padStart(2, "0")} / {String(photos.length).padStart(2, "0")}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Work() {
-  const [active, setActive] = useState<string>("");
-  const [lightbox, setLightbox] = useState<number | null>(null);
-  const { data: categories = [] } = useQuery(categoriesQuery());
-  const { data: allPhotos = [] } = useQuery(photosQuery());
-
-  // Set first category as default once loaded
-  useEffect(() => {
-    if (categories.length > 0 && !active) setActive(categories[0].slug);
-  }, [categories, active]);
-
-  const activeCategory: WorkCategory | undefined = categories.find((c) => c.slug === active);
-  const categoryPhotos = useMemo(
-    () => allPhotos.filter((p) => p.category === active),
-    [allPhotos, active],
-  );
-  const previewPhotos = categoryPhotos.slice(0, PHOTOS_PREVIEW_LIMIT);
-  const hasMore = categoryPhotos.length > PHOTOS_PREVIEW_LIMIT;
-
-  if (categories.length === 0) return null;
-
-  return (
-    <section id="work" className="relative overflow-hidden border-y border-border bg-[var(--espresso)] px-6 py-28 md:py-32">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,171,95,0.08),transparent_28%)]" />
-      <Aperture className="pointer-events-none absolute -right-24 top-10 hidden h-[30rem] w-[30rem] text-gold/[0.05] md:block aperture-spin" strokeWidth={0.5} />
-
-      <div className="relative mx-auto max-w-7xl">
-        <div className="mb-14 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-          <div className="reveal">
-            <p className="mb-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-              <span className="h-px w-10 bg-gold" /> Work
-            </p>
-            <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl lg:text-8xl">
-              Signature work,
-              <br />
-              <span className="italic text-gold">not just categories.</span>
-            </h2>
-          </div>
-          <p className="reveal max-w-md text-sm leading-relaxed text-cream/60 md:text-base">
-            A curated archive — visual range and consistency across every project.
-          </p>
-        </div>
-
-        <div className="reveal mb-10 flex flex-wrap items-center gap-3">
-          {categories.map((cat, index) => (
-            <button
-              key={cat.slug}
-              onClick={() => setActive(cat.slug)}
-              className={`group relative overflow-hidden rounded-full border px-5 py-3 text-[11px] uppercase tracking-[0.3em] transition-all ${
-                cat.slug === active
-                  ? "border-gold bg-gold text-[var(--espresso)]"
-                  : "border-white/12 bg-white/3 text-cream/70 hover:border-gold/40 hover:text-gold"
-              }`}
-            >
-              <span className="mr-3 text-[10px] opacity-60">{String(index + 1).padStart(2, "0")}</span>
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-10 grid gap-5 lg:grid-cols-[0.74fr_1.26fr]">
-          <div className="reveal glass-panel flex flex-col justify-between p-8">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.35em] text-gold">Current selection</p>
-              <h3 className="mt-4 font-display text-4xl text-cream md:text-5xl">{activeCategory?.label}</h3>
-              <p className="mt-4 font-display text-2xl italic text-gold/90">{activeCategory?.tag}</p>
-              <p className="mt-6 max-w-sm text-sm leading-relaxed text-cream/68">{activeCategory?.intro}</p>
-            </div>
-            <div className="mt-8 border-t border-white/10 pt-6 text-[10px] uppercase tracking-[0.35em] text-cream/45">
-              Open any frame to view it as a portfolio piece
-            </div>
-          </div>
-
-          <div className="reveal relative min-h-[22rem] overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 md:min-h-[30rem]">
-            <img
-              src={categoryPhotos[0]?.url}
-              alt={categoryPhotos[0]?.title}
-              className="absolute inset-0 h-full w-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        </div>
-
-        <div key={active} className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5" style={{ gridAutoRows: "clamp(160px, 22vw, 280px)" }}>
-          {previewPhotos.map((photo, index) => (
-            <button
-              key={`${active}-${photo.id}`}
-              onClick={() => setLightbox(index)}
-              className={`group relative h-full overflow-hidden rounded-[1.5rem] text-left ${photo.tall ? "row-span-2" : ""} ${
-                index === 0 ? "col-span-2" : ""
-              }`}
-              style={{ opacity: 0, animation: `fade-in 0.7s ease-out ${index * 0.08}s forwards` }}
-            >
-              <img
-                src={photo.url}
-                alt={photo.title}
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,10,6,0.02),rgba(16,10,6,0.16)_40%,rgba(16,10,6,0.92)_100%)]" />
-              <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: "linear-gradient(145deg, color-mix(in oklab, var(--gold) 22%, transparent), transparent 55%)" }} />
-              <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-gold">
-                    {String(index + 1).padStart(2, "0")} / {activeCategory?.label}
-                  </p>
-                  {photo.location ? (
-                    <p className="mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.32em] text-cream/60">
-                      <MapPin className="h-3 w-3" />
-                      {photo.location}
-                    </p>
-                  ) : null}
-                </div>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/15 text-cream transition-all group-hover:border-gold group-hover:bg-gold group-hover:text-[var(--espresso)]">
-                  <ArrowUpRight className="h-4 w-4" />
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {hasMore && (
-          <div className="mt-10 flex justify-center">
-            <Link
-              to="/work/$category"
-              params={{ category: active }}
-              className="group flex items-center gap-3 rounded-full border border-gold/40 bg-gold/8 px-8 py-4 text-[11px] uppercase tracking-[0.3em] text-gold transition-all hover:bg-gold hover:text-[var(--espresso)]"
-            >
-              View all {categoryPhotos.length} photos
-              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {lightbox !== null ? (
-        <Lightbox
-          photos={previewPhotos}
-          index={lightbox}
-          onClose={() => setLightbox(null)}
-          setIndex={(value) => setLightbox(value)}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-function Process() {
-  const { data: settings } = useSiteSettings();
-  return (
-    <section className="mx-auto max-w-7xl px-6 py-28 md:py-32">
-      <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div className="reveal">
-          <p className="mb-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-            <span className="h-px w-10 bg-gold" /> Experience
-          </p>
-          <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl">
-            The craft behind
-            <br />
-            <span className="italic text-gold">the final frame.</span>
-          </h2>
-        </div>
-        <p className="reveal max-w-md text-sm leading-relaxed text-cream/62 md:text-base">
-          This section now reads like artistic process, showing how observation, direction, and finishing shape the portfolio.
-        </p>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
-        <div className="reveal overflow-hidden rounded-[2rem] border border-white/10">
-          <img src={settings?.process_image_url ?? uHandsTattoo} alt="Hands detail portrait" className="h-[28rem] w-full object-cover md:h-[38rem]" loading="lazy" />
-        </div>
-        <div className="grid gap-5">
-          {processSteps.map(([number, title, copy]) => (
-            <div key={number} className="reveal glass-panel p-7 md:p-8">
-              <div className="flex items-start gap-5">
-                <div className="font-display text-4xl text-gold/75">{number}</div>
-                <div>
-                  <h3 className="font-display text-3xl text-cream">{title}</h3>
-                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-cream/68 md:text-base">{copy}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Services() {
-  return (
-    <section id="services" className="relative overflow-hidden border-y border-border bg-[var(--espresso)] px-6 py-28 md:py-32">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(212,171,95,0.08),transparent_28%)]" />
-      <div className="relative mx-auto max-w-7xl">
-        <div className="reveal mb-16 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="mb-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-              <span className="h-px w-10 bg-gold" /> Strengths
-            </p>
-            <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl">
-              Where the work
-              <br />
-              <span className="italic text-gold">speaks strongest.</span>
-            </h2>
-          </div>
-          <p className="max-w-sm text-sm leading-relaxed text-cream/60 md:text-base">
-            These are presented less like packages and more like the photographer's strongest visual territories.
-          </p>
-        </div>
-
+      <div className="mx-auto max-w-7xl px-6">
         <motion.div
-          className="grid gap-5 md:grid-cols-3"
-          variants={cardContainer}
+          variants={stagger}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
+          className="mb-20 max-w-4xl"
         >
-          {services.map((service, index) => (
-            <motion.div key={service.name} variants={cardItem} className="glass-panel group p-8 transition-transform duration-500 hover:-translate-y-2">
-              <div className="flex items-start justify-between">
-                <span className="font-display text-5xl text-gold/45">{String(index + 1).padStart(2, "0")}</span>
-                <service.icon className="h-7 w-7 text-gold transition-transform duration-500 group-hover:rotate-12" strokeWidth={1.2} />
-              </div>
-              <h3 className="mt-12 font-display text-3xl text-cream">{service.name}</h3>
-              <p className="mt-4 text-sm leading-relaxed text-cream/70">{service.desc}</p>
-              <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-5">
-                <span className="text-[10px] uppercase tracking-[0.32em] text-gold">{service.price}</span>
-                <ArrowUpRight className="h-4 w-4 text-cream/45 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-gold" />
-              </div>
-            </motion.div>
-          ))}
+          <motion.p variants={fadeUp} className="mb-5 text-[9px] uppercase tracking-[0.58em] text-gold/55">Our Philosophy</motion.p>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl leading-[1.12] text-cream md:text-5xl lg:text-6xl">
+            {settings?.tagline ?? "We believe every love story deserves to be told with art — not just photographs, but frames that breathe, carry feeling, and endure time."}
+          </motion.h2>
+        </motion.div>
+
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          className="grid grid-cols-3 divide-x divide-gold/12 border border-gold/12"
+        >
+          {stats.map((s, i) => {
+            const num = parseInt(s.raw) || 0;
+            const suffix = s.raw.replace(/[0-9]/g, "");
+            return (
+              <motion.div key={i} variants={scaleIn}>
+                <StatItem num={num} suffix={suffix} label={s.label} />
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
     </section>
   );
 }
 
-function Quote() {
-  const { data: settings } = useSiteSettings();
+// ─── Work / Gallery ───────────────────────────────────────────────────────────
+function Work() {
+  const { data: photos = [] } = useQuery(photosQuery());
+  const { data: categories = [] } = useQuery(categoriesQuery());
+  const [activeCat, setActiveCat] = useState("all");
+
+  const filtered = activeCat === "all"
+    ? photos.slice(0, PHOTOS_PREVIEW_LIMIT)
+    : photos.filter((p) => p.category === activeCat).slice(0, PHOTOS_PREVIEW_LIMIT);
+
   return (
-    <section className="grain relative overflow-hidden px-6 py-28 md:py-36">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,171,95,0.08),transparent_40%)]" />
-      <div className="reveal relative mx-auto max-w-5xl text-center">
-        <span className="font-display text-6xl text-gold/35 md:text-7xl">"</span>
-        <p className="font-display text-4xl italic leading-[1.08] text-cream md:text-6xl lg:text-7xl">
-          {settings?.quote_text ?? "A strong portfolio should show not only the moment, but the mind behind it."}
-        </p>
-        <div className="mx-auto mt-10 h-px w-24 bg-gold" />
-        <p className="mt-6 text-[10px] uppercase tracking-[0.5em] text-gold">
-          {settings?.quote_author ?? "Dopamine portfolio / Sri Lanka"}
-        </p>
+    <section id="work" className="relative bg-[var(--background)] py-24 md:py-40">
+      <div className="mx-auto max-w-7xl px-6">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          className="mb-14 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"
+        >
+          <div>
+            <motion.p variants={fadeUp} className="mb-2 text-[9px] uppercase tracking-[0.58em] text-gold/55">Portfolio</motion.p>
+            <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Our Work</motion.h2>
+          </div>
+          <motion.div variants={fadeUp} className="flex flex-wrap gap-2">
+            {[{ slug: "all", label: "All" } as WorkCategory, ...(categories as WorkCategory[])].map((c) => (
+              <button
+                key={c.slug}
+                onClick={() => setActiveCat(c.slug)}
+                className={`border px-4 py-1.5 text-[9px] uppercase tracking-[0.42em] transition-all ${activeCat === c.slug ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-cream/45 hover:border-gold/35 hover:text-cream/75"}`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* Asymmetric masonry grid */}
+        {filtered.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="py-24 text-center">
+            <Aperture className="mx-auto mb-4 h-10 w-10 text-gold/20" strokeWidth={0.8} />
+            <p className="font-display text-2xl text-cream/30">No photos yet</p>
+            <p className="mt-2 text-[9px] uppercase tracking-[0.45em] text-cream/18">Add photos in the admin panel</p>
+          </motion.div>
+        ) : (
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-40px" }}
+          className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3"
+        >
+          {filtered.map((photo, i) => (
+            <motion.div
+              key={photo.id}
+              variants={scaleIn}
+              className={`group relative overflow-hidden ${i === 0 ? "col-span-2 md:col-span-2" : ""} ${i === 3 ? "md:col-span-2" : ""}`}
+            >
+              <Link to="/work/$category" params={{ category: photo.category ?? "all" }}>
+                <div className={`relative overflow-hidden ${i === 0 ? "aspect-[16/9]" : "aspect-square"}`}>
+                  <img
+                    src={photo.url}
+                    alt={photo.title ?? ""}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.08]"
+                  />
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-[var(--espresso)]/0 transition-all duration-500 group-hover:bg-[var(--espresso)]/55" />
+                  {/* Inset border reveal */}
+                  <div className="absolute inset-0 border border-transparent transition-all duration-500 group-hover:inset-3 group-hover:border-gold/40" />
+                  {/* Caption slide up */}
+                  <div className="absolute bottom-0 left-0 right-0 translate-y-full p-5 transition-transform duration-500 group-hover:translate-y-0">
+                    <p className="text-[8px] uppercase tracking-[0.5em] text-gold">{photo.category}</p>
+                    <p className="mt-0.5 font-display text-xl text-cream">{photo.title}</p>
+                  </div>
+                  {/* Arrow */}
+                  <div className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center border border-transparent text-transparent transition-all duration-500 group-hover:border-gold/55 group-hover:text-gold">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+        )}
+
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="mt-12 text-center"
+        >
+          <Link
+            to="/work/$category"
+            params={{ category: "all" }}
+            className="group inline-flex items-center gap-2.5 border border-gold/38 px-9 py-4 text-[10px] uppercase tracking-[0.42em] text-gold transition-all hover:bg-gold hover:text-[var(--espresso)]"
+          >
+            View Full Gallery
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </Link>
+        </motion.div>
       </div>
     </section>
   );
 }
 
-function Packages() {
-  const { data: packages = [] } = useQuery(publicPackagesQuery());
+// ─── About ────────────────────────────────────────────────────────────────────
+function About() {
   const { data: settings } = useSiteSettings();
-  const siteName = settings?.site_name ?? "Dopamine";
-  if (packages.length === 0) return null;
+  const sectionRef = useRef<HTMLElement>(null);
 
   return (
-    <section id="packages" className="relative overflow-hidden border-y border-border bg-[var(--espresso)] px-6 py-28 md:py-32">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(212,171,95,0.07),transparent_35%)]" />
-      <div className="relative mx-auto max-w-7xl">
-        <div className="reveal mb-16 text-center">
-          <p className="mb-3 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-            <span className="h-px w-10 bg-gold" /> Packages
-          </p>
-          <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl">
-            Invest in images
-            <br />
-            <span className="italic text-gold">worth keeping forever.</span>
-          </h2>
+    <section id="about" ref={sectionRef} className="relative overflow-hidden bg-[var(--espresso)] py-28 md:py-44">
+      <div className="pointer-events-none absolute left-0 top-0 h-full w-1/2 bg-[radial-gradient(ellipse_80%_60%_at_0%_50%,rgba(201,169,110,0.05),transparent)]" />
+
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-3xl">
+          {/* Text */}
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            className="flex flex-col justify-center"
+          >
+            <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">Our Story</motion.p>
+            <motion.h2 variants={fadeUp} className="font-display text-4xl leading-[1.08] text-cream md:text-5xl">
+              {settings?.photographer_name ?? "Lov’Ceylon Photography"}
+            </motion.h2>
+            <motion.div variants={fadeUp} className="my-6 h-px bg-gradient-to-r from-gold/35 to-transparent" />
+            <motion.p variants={fadeUp} className="text-[15px] leading-relaxed text-cream/60">
+              {settings?.about_text ?? "Lov’Ceylon Photography was founded with a single purpose — to tell love stories with the depth they deserve."}
+            </motion.p>
+
+            <motion.div variants={stagger} className="mt-10 grid grid-cols-3 gap-5 border-t border-gold/12 pt-8">
+              {[
+                [settings?.stat_1_value ?? "10+", settings?.stat_1_label ?? "Years"],
+                [settings?.stat_2_value ?? "500+", settings?.stat_2_label ?? "Weddings"],
+                [settings?.stat_3_value ?? "SL·JP", settings?.stat_3_label ?? "Countries"],
+              ].map(([n, l]) => (
+                <motion.div key={l} variants={fadeUp}>
+                  <p className="font-display text-3xl text-gold">{n}</p>
+                  <p className="mt-0.5 text-[8px] uppercase tracking-[0.45em] text-cream/40">{l}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="mt-10 flex gap-3">
+              <a href="#contact" className="inline-flex items-center gap-2 bg-gold px-6 py-3 text-[10px] uppercase tracking-[0.4em] text-[var(--espresso)] transition-all hover:-translate-y-0.5">
+                Work With Us <ArrowUpRight className="h-3 w-3" />
+              </a>
+              <a href={`https://wa.me/${settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619"}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-gold/35 px-6 py-3 text-[10px] uppercase tracking-[0.4em] text-gold transition-all hover:bg-gold/8">
+                <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+              </a>
+            </motion.div>
+          </motion.div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Services ─────────────────────────────────────────────────────────────────
+function Services() {
+  const { data: services = [] } = useQuery(publicServicesQuery());
+
+  if (services.length === 0) return null;
+
+  return (
+    <section id="services" className="relative bg-[var(--background)] py-28 md:py-44">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_100%,rgba(201,169,110,0.05),transparent)]" />
+
+      <div className="mx-auto max-w-7xl px-6">
         <motion.div
-          className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
-          variants={cardContainer}
+          variants={stagger}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
+          className="mb-16 text-center"
+        >
+          <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">What We Offer</motion.p>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Services</motion.h2>
+        </motion.div>
+
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-40px" }}
+          className="grid gap-px bg-gold/10 md:grid-cols-3"
+        >
+          {services.map((s) => {
+            const Icon = ICON_MAP[s.icon_name] ?? Camera;
+            return (
+              <motion.div
+                key={s.id}
+                variants={fadeUp}
+                whileHover={{ y: -5 }}
+                transition={{ duration: 0.3 }}
+                className="group relative flex flex-col bg-[var(--background)] p-10 transition-colors hover:bg-[rgba(201,169,110,0.03)]"
+              >
+                <p className="mb-6 font-display text-5xl text-gold/12 transition-colors group-hover:text-gold/25">{s.num}</p>
+                <div className="mb-6 flex h-12 w-12 items-center justify-center border border-gold/18 transition-colors group-hover:border-gold/45">
+                  <Icon className="h-5 w-5 text-gold/60 transition-colors group-hover:text-gold" strokeWidth={1.2} />
+                </div>
+                <h3 className="mb-4 font-display text-2xl text-cream">{s.name}</h3>
+                <p className="flex-1 text-sm leading-relaxed text-cream/50">{s.description}</p>
+                <div className="mt-8 h-px w-0 bg-gold/35 transition-all duration-500 group-hover:w-full" />
+                {s.detail && <p className="mt-3 text-[8px] uppercase tracking-[0.42em] text-gold/45">{s.detail}</p>}
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Process ──────────────────────────────────────────────────────────────────
+function Process() {
+  const { data: steps = [] } = useQuery(publicProcessStepsQuery());
+
+  if (steps.length === 0) return null;
+
+  return (
+    <section className="relative overflow-hidden bg-[var(--espresso)] py-28 md:py-44">
+      <div className="mx-auto max-w-7xl px-6">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          className="mb-16"
+        >
+          <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">How It Works</motion.p>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Our Process</motion.h2>
+        </motion.div>
+
+        <div className="relative grid gap-0 md:grid-cols-3">
+          <div className="absolute left-0 right-0 top-12 hidden md:block">
+            <motion.div
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.4, ease, delay: 0.2 }}
+              className="h-px origin-left bg-gradient-to-r from-transparent via-gold/22 to-transparent"
+            />
+          </div>
+
+          {steps.map((step, i) => (
+            <motion.div
+              key={step.id}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ delay: i * 0.14 }}
+              className="relative border-l border-gold/12 py-8 pl-8 md:border-l-0 md:border-t md:pl-0 md:pr-12 md:pt-10"
+            >
+              <div className="absolute -left-2 top-8 flex h-4 w-4 items-center justify-center rounded-full border border-gold/35 bg-[var(--espresso)] md:-top-2 md:left-8 md:-translate-x-1/2">
+                <div className="h-1.5 w-1.5 rounded-full bg-gold/60" />
+              </div>
+              <p className="mb-6 font-display text-5xl text-gold/15 md:pl-14">{step.num}</p>
+              <div className="md:pl-14">
+                <h3 className="mb-3 font-display text-2xl text-cream">{step.title}</h3>
+                <p className="text-sm leading-relaxed text-cream/50">{step.description}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Packages ─────────────────────────────────────────────────────────────────
+function Packages() {
+  const { data: packages = [] } = useQuery(publicPackagesQuery());
+  const { data: settings } = useSiteSettings();
+
+  if (packages.length === 0) return null;
+
+  return (
+    <section id="packages" className="relative bg-[var(--background)] py-28 md:py-44">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_0%,rgba(201,169,110,0.06),transparent)]" />
+
+      <div className="mx-auto max-w-7xl px-6">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          className="mb-16 text-center"
+        >
+          <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">Investment</motion.p>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Collections</motion.h2>
+          <motion.p variants={fadeUp} className="mt-3 text-sm text-cream/40">Tailored packages for every love story</motion.p>
+        </motion.div>
+
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-40px" }}
+          className="grid gap-5 md:grid-cols-3"
         >
           {packages.map((pkg) => (
             <motion.div
               key={pkg.id}
-              variants={cardItem}
-              className={`glass-panel flex flex-col p-8 transition-transform duration-500 hover:-translate-y-1 ${
-                pkg.is_popular ? "border-[var(--gold)]/50 ring-1 ring-[var(--gold)]/20" : ""
-              }`}
+              variants={fadeUp}
+              whileHover={{ y: -7 }}
+              transition={{ duration: 0.35 }}
+              className={`relative flex flex-col border p-9 ${pkg.is_popular ? "border-gold bg-[rgba(201,169,110,0.05)] shadow-[0_0_80px_rgba(201,169,110,0.1)]" : "border-gold/12 hover:border-gold/28"}`}
             >
               {pkg.is_popular && (
-                <span className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-gold">
-                  <Star className="h-3 w-3 fill-gold" /> Most Popular
-                </span>
+                <div className="absolute -top-px left-1/2 -translate-x-1/2 whitespace-nowrap bg-gold px-4 py-1 text-[8px] uppercase tracking-[0.5em] text-[var(--espresso)]">
+                  Most Popular
+                </div>
               )}
-              <h3 className="font-display text-3xl text-cream">{pkg.name}</h3>
-              <p className="mt-2 font-display text-4xl text-gold">{pkg.price}</p>
-              {pkg.description && (
-                <p className="mt-4 text-sm leading-relaxed text-cream/65">{pkg.description}</p>
-              )}
-              {pkg.features.length > 0 && (
-                <ul className="mt-6 flex-1 space-y-3 border-t border-white/10 pt-6">
-                  {pkg.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-cream/75">
-                      <span className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border border-gold/40 text-center text-[9px] leading-[14px] text-gold">✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <p className="text-[8px] uppercase tracking-[0.5em] text-gold/55">{pkg.name}</p>
+              <p className="mt-3 font-display text-4xl text-cream">{pkg.price}</p>
+              <p className="mt-3 text-sm leading-relaxed text-cream/50">{pkg.description}</p>
+              <div className="my-7 h-px bg-gold/12" />
+              <ul className="flex-1 space-y-3">
+                {((pkg.features ?? []) as string[]).map((f: string) => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-cream/65">
+                    <span className="h-px w-4 shrink-0 bg-gold/45" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
               <a
-                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi ${siteName}! I'm interested in booking the *${pkg.name}* package (${pkg.price}). Could you please let me know the available dates and how to proceed? Thank you!`)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-8 inline-flex items-center justify-center gap-2 bg-gold px-6 py-3 text-[11px] uppercase tracking-[0.3em] text-[var(--espresso)] transition-transform hover:-translate-y-0.5"
+                href={`https://wa.me/${settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619"}?text=${encodeURIComponent(`Hi! I'm interested in the ${pkg.name} package.`)}`}
+                target="_blank" rel="noreferrer"
+                className={`mt-9 block py-3.5 text-center text-[10px] uppercase tracking-[0.4em] transition-all ${pkg.is_popular ? "bg-gold text-[var(--espresso)] hover:brightness-110" : "border border-gold/35 text-gold hover:bg-gold/8"}`}
               >
-                Book this package
-                <ArrowUpRight className="h-4 w-4" />
+                Enquire
               </a>
             </motion.div>
           ))}
@@ -1163,268 +991,426 @@ function Packages() {
   );
 }
 
+// ─── Testimonials ─────────────────────────────────────────────────────────────
 function Testimonials() {
   const { data: testimonials = [] } = useQuery(publicTestimonialsQuery());
+  const [current, setCurrent] = useState(0);
+
   if (testimonials.length === 0) return null;
+  const t = testimonials[current];
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-28 md:py-32">
-      <div className="reveal mb-14 text-center">
-        <p className="mb-3 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-          <span className="h-px w-10 bg-gold" /> Testimonials
-        </p>
-        <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl">
-          Stories from
-          <br />
-          <span className="italic text-gold">those who trusted the lens.</span>
-        </h2>
-      </div>
-      <motion.div
-        className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
-        variants={cardContainer}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-60px" }}
-      >
-        {testimonials.map((t) => (
-          <motion.div key={t.id} variants={cardItem} className="glass-panel flex flex-col p-8">
-            <div className="flex gap-0.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
+    <section className="relative overflow-hidden bg-[var(--espresso)] py-28 md:py-44">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_50%,rgba(201,169,110,0.04),transparent)]" />
+
+      <div className="mx-auto max-w-4xl px-6 text-center">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          className="mb-14"
+        >
+          <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">Client Love</motion.p>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Testimonials</motion.h2>
+        </motion.div>
+
+        <motion.div
+          variants={fadeIn}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+        >
+          {/* Giant decorative quote */}
+          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-display text-[14rem] leading-none text-gold/[0.05] select-none">
+            &ldquo;
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current}
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -22 }}
+              transition={{ duration: 0.55 }}
+            >
+              <div className="mb-8 flex justify-center gap-1">
+                {Array.from({ length: t.rating ?? 5 }).map((_, i) => (
+                  <Star key={i} className="h-3.5 w-3.5 fill-gold text-gold" />
+                ))}
+              </div>
+              <p className="mx-auto max-w-3xl font-display text-2xl leading-relaxed text-cream/88 md:text-[1.75rem]">
+                &ldquo;{t.review_text}&rdquo;
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-1">
+                <p className="font-display text-xl text-cream">{t.client_name}</p>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Controls */}
+          <div className="mt-14 flex items-center justify-center gap-7">
+            <button
+              onClick={() => setCurrent((i) => (i - 1 + testimonials.length) % testimonials.length)}
+              className="flex h-10 w-10 items-center justify-center border border-gold/22 text-cream/45 transition-all hover:border-gold hover:text-gold"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex gap-2">
+              {testimonials.map((_, i) => (
+                <button
                   key={i}
-                  className={`h-4 w-4 ${i < t.rating ? "fill-gold text-gold" : "text-cream/20"}`}
+                  onClick={() => setCurrent(i)}
+                  className={`rounded-full transition-all duration-400 ${i === current ? "h-1.5 w-7 bg-gold" : "h-1.5 w-1.5 bg-white/18 hover:bg-white/38"}`}
                 />
               ))}
             </div>
-            <p className="mt-5 flex-1 font-display text-xl italic leading-relaxed text-cream">
-              "{t.review_text}"
-            </p>
-            <div className="mt-8 border-t border-white/10 pt-5">
-              <p className="font-medium text-cream">{t.client_name}</p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-gold/70">{t.review_date}</p>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
+            <button
+              onClick={() => setCurrent((i) => (i + 1) % testimonials.length)}
+              className="flex h-10 w-10 items-center justify-center border border-gold/22 text-cream/45 transition-all hover:border-gold hover:text-gold"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      </div>
     </section>
   );
 }
 
-const SOCIAL_ICON_MAP: Record<string, React.ElementType> = {
-  instagram: Instagram,
-  facebook: Facebook,
-  whatsapp: MessageCircle,
-  youtube: Youtube,
-  tiktok: Camera,
-  twitter: Link2,
-  custom: Link2,
-};
-
+// ─── Contact ──────────────────────────────────────────────────────────────────
 function Contact() {
   const { data: settings } = useSiteSettings();
   const { data: socialLinks = [] } = useQuery(socialLinksQuery());
-  const activeLinks = socialLinks.filter((l) => l.is_active);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", service: "", message: "" });
+  const [sending, setSending] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    project_type: "Wedding",
-    message: "",
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    if (!form.name || !form.email || !form.message) { toast.error("Please fill in all required fields."); return; }
+    setSending(true);
     try {
-      await submitContactForm(formData);
-      toast.success("Message sent! I'll be in touch soon.");
-      setFormData({ name: "", email: "", project_type: "Wedding", message: "" });
+      await submitContactForm(form);
+      toast.success("Message sent! We’ll be in touch soon.");
+      setForm({ name: "", email: "", phone: "", service: "", message: "" });
     } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+      toast.error("Something went wrong. Try WhatsApp instead.");
+    } finally { setSending(false); }
   };
 
+  const socialMap: Record<string, React.FC<{ className?: string }>> = {
+    instagram: Instagram, facebook: Facebook, youtube: Play, whatsapp: MessageCircle,
+    tiktok: Play, twitter: X, website: Link2,
+  };
+
+  const waNumber = settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619";
+  const contactInfo = [
+    { Icon: MapPin, text: settings?.contact_location ?? "Sri Lanka · Japan" },
+    { Icon: MessageCircle, text: settings?.contact_email ?? "hello@lceylon.com" },
+    { Icon: Phone, text: settings?.contact_phone ?? `+${waNumber}` },
+  ];
+
   return (
-    <section id="contact" className="mx-auto max-w-7xl px-6 py-28 md:py-32">
-      <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-        <div className="reveal overflow-hidden rounded-[2rem] border border-white/10">
-          <img src={settings?.contact_image_url ?? uWeddingCouple} alt="Wedding couple smiling" className="h-[30rem] w-full object-cover md:h-[40rem]" loading="lazy" />
-        </div>
+    <section id="contact" className="relative bg-[var(--background)] py-28 md:py-44">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(201,169,110,0.07),transparent)]" />
 
-        <div className="reveal">
-          <p className="mb-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-gold">
-            <span className="h-px w-10 bg-gold" /> Contact
-          </p>
-          <h2 className="font-display text-5xl leading-[0.94] text-cream md:text-7xl lg:text-8xl">
-            Want to work with
-            <br />
-            <span className="italic text-gold">this photographic style?</span>
-          </h2>
-          <p className="mt-8 max-w-lg text-sm leading-relaxed text-cream/68 md:text-base">
-            The contact section stays available, but it now sits after the portfolio story so the talent leads and the inquiry comes second.
-          </p>
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-16 md:grid-cols-2 md:gap-24">
+          {/* Info */}
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+          >
+            <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">Get in Touch</motion.p>
+            <motion.h2 variants={fadeUp} className="font-display text-4xl leading-[1.08] text-cream md:text-5xl">
+              Let&#39;s Tell Your<br />Story Together
+            </motion.h2>
+            <motion.div variants={fadeUp} className="my-6 h-px w-14 bg-gold/35" />
+            <motion.p variants={fadeUp} className="text-sm leading-relaxed text-cream/55">
+              Ready to begin? We&#39;d love to hear about your day. Reach out via the form or connect directly — we typically respond within 24 hours.
+            </motion.p>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2">
-            <div className="glass-panel p-5">
-              <p className="text-[10px] uppercase tracking-[0.32em] text-cream/45">Email</p>
-              <a
-                href={`mailto:${settings?.contact_email ?? "hello@dopamine.lk"}`}
-                className="mt-3 block break-all text-sm font-medium text-cream hover:text-gold"
-              >
-                {settings?.contact_email ?? "hello@dopamine.lk"}
-              </a>
-            </div>
-            {settings?.contact_phone ? (
-              <div className="glass-panel p-5">
-                <p className="text-[10px] uppercase tracking-[0.32em] text-cream/45">Phone</p>
-                <a
-                  href={`tel:${settings.contact_phone}`}
-                  className="mt-3 block break-all text-sm font-medium text-cream hover:text-gold"
-                >
-                  {settings.contact_phone}
-                </a>
-              </div>
-            ) : (
-              <div className="glass-panel p-5">
-                <p className="text-[10px] uppercase tracking-[0.32em] text-cream/45">Based in</p>
-                <p className="mt-3 text-sm font-medium text-cream">
-                  {settings?.contact_location ?? "Colombo, Sri Lanka"}
-                </p>
-              </div>
+            <motion.div variants={stagger} className="mt-10 space-y-5">
+              {contactInfo.map(({ Icon, text }, i) => (
+                <motion.div key={i} variants={fadeUp} className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-gold/18">
+                    <Icon className="h-4 w-4 text-gold/65" />
+                  </div>
+                  <p className="text-sm text-cream/60">{text}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {socialLinks.length > 0 && (
+              <motion.div variants={fadeUp} className="mt-10 flex gap-2.5">
+                {socialLinks.map((link) => {
+                  const SIcon = socialMap[link.platform] ?? Link2;
+                  return (
+                    <a key={link.id} href={link.url} target="_blank" rel="noreferrer"
+                      className="flex h-10 w-10 items-center justify-center border border-gold/18 text-cream/42 transition-all hover:border-gold hover:text-gold">
+                      <SIcon className="h-4 w-4" />
+                    </a>
+                  );
+                })}
+              </motion.div>
             )}
-          </div>
-          {settings?.contact_phone && (
-            <div className="mt-5 glass-panel p-5">
-              <p className="text-[10px] uppercase tracking-[0.32em] text-cream/45">Based in</p>
-              <p className="mt-3 text-sm font-medium text-cream">
-                {settings?.contact_location ?? "Colombo, Sri Lanka"}
-              </p>
-            </div>
-          )}
 
-          <form className="mt-10 space-y-6" onSubmit={handleSubmit}>
+            <motion.div variants={fadeUp} className="mt-10">
+              <a
+                href={`https://wa.me/${waNumber}?text=${encodeURIComponent("Hi Lov'Ceylon! I'd like to book a session.")}`}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-2.5 bg-[#25d366] px-6 py-3.5 text-[10px] uppercase tracking-[0.4em] text-white transition-all hover:-translate-y-0.5 hover:brightness-110"
+              >
+                <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
+              </a>
+            </motion.div>
+          </motion.div>
+
+          {/* Form */}
+          <motion.form
+            variants={stagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
             {[
-              { label: "Name", type: "text", key: "name" },
-              { label: "Email", type: "email", key: "email" },
-            ].map((field) => (
-              <div key={field.label}>
-                <label className="mb-2 block text-[10px] uppercase tracking-[0.32em] text-cream/52">{field.label}</label>
-                <input
-                  type={field.type}
-                  required
-                  value={formData[field.key as "name" | "email"]}
-                  onChange={(e) => setFormData((p) => ({ ...p, [field.key]: e.target.value }))}
-                  className="w-full rounded-2xl border border-white/10 bg-white/4 px-5 py-4 text-cream outline-none backdrop-blur-sm transition-colors focus:border-gold"
-                />
-              </div>
+              { k: "name" as const, label: "Your Name *", type: "text", ph: "First & last name" },
+              { k: "email" as const, label: "Email Address *", type: "email", ph: "you@example.com" },
+              { k: "phone" as const, label: "Phone / WhatsApp", type: "tel", ph: "+94 77 xxx xxxx" },
+            ].map(({ k, label, type, ph }) => (
+              <motion.div key={k} variants={fadeUp}>
+                <label className="mb-2 block text-[8px] uppercase tracking-[0.5em] text-cream/45">{label}</label>
+                <input type={type} placeholder={ph} value={form[k]} onChange={set(k)}
+                  className="w-full border border-gold/12 bg-transparent px-4 py-3 text-sm text-cream outline-none placeholder:text-cream/22 focus:border-gold/42 transition-colors" />
+              </motion.div>
             ))}
-
-            <div>
-              <label className="mb-2 block text-[10px] uppercase tracking-[0.32em] text-cream/52">Project Type</label>
-              <select
-                value={formData.project_type}
-                onChange={(e) => setFormData((p) => ({ ...p, project_type: e.target.value }))}
-                className="w-full rounded-2xl border border-white/10 bg-[var(--espresso)] px-5 py-4 text-cream outline-none transition-colors focus:border-gold"
-              >
-                <option>Wedding</option>
-                <option>Portrait</option>
-                <option>Event</option>
-                <option>Brand / Commercial</option>
+            <motion.div variants={fadeUp}>
+              <label className="mb-2 block text-[8px] uppercase tracking-[0.5em] text-cream/45">Service</label>
+              <select value={form.service} onChange={set("service")}
+                className="w-full border border-gold/12 bg-[var(--background)] px-4 py-3 text-sm text-cream outline-none focus:border-gold/42 transition-colors">
+                <option value="">Select a service</option>
+                <option>Wedding Photography</option>
+                <option>Fashion &amp; Portrait</option>
+                <option>Homecoming &amp; Events</option>
               </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[10px] uppercase tracking-[0.32em] text-cream/52">Message</label>
-              <textarea
-                rows={5}
-                required
-                value={formData.message}
-                onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
-                className="w-full resize-none rounded-[1.6rem] border border-white/10 bg-white/4 px-5 py-4 text-cream outline-none backdrop-blur-sm transition-colors focus:border-gold"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="group inline-flex items-center gap-3 bg-gold px-8 py-4 text-[11px] uppercase tracking-[0.32em] text-[var(--espresso)] transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-60"
-              >
-                {submitting ? "Sending…" : "Send inquiry"}
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+            </motion.div>
+            <motion.div variants={fadeUp}>
+              <label className="mb-2 block text-[8px] uppercase tracking-[0.5em] text-cream/45">Message *</label>
+              <textarea rows={5} placeholder="Tell us about your event — date, venue, vision..." value={form.message} onChange={set("message")}
+                className="w-full resize-none border border-gold/12 bg-transparent px-4 py-3 text-sm text-cream outline-none placeholder:text-cream/22 focus:border-gold/42 transition-colors" />
+            </motion.div>
+            <motion.div variants={fadeUp}>
+              <button type="submit" disabled={sending}
+                className="w-full bg-gold py-4 text-[10px] uppercase tracking-[0.48em] text-[var(--espresso)] transition-all hover:brightness-110 disabled:opacity-50">
+                {sending ? "Sending…" : "Send Message"}
               </button>
-
-              {activeLinks.length > 0 && (
-                <div className="flex gap-3">
-                  {activeLinks.map((link) => {
-                    const Icon = SOCIAL_ICON_MAP[link.platform] ?? Link2;
-                    return (
-                      <a
-                        key={link.id}
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={link.label}
-                        className="flex h-11 w-11 items-center justify-center rounded-full border border-white/12 text-cream/75 transition-all hover:-translate-y-0.5 hover:border-gold hover:text-gold"
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={1.4} />
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </form>
+            </motion.div>
+          </motion.form>
         </div>
       </div>
     </section>
   );
 }
 
+// ─── Footer ───────────────────────────────────────────────────────────────────
 function Footer() {
   const { data: settings } = useSiteSettings();
+  const { data: socialLinks = [] } = useQuery(socialLinksQuery());
+
+  const socialMap: Record<string, React.FC<{ className?: string }>> = {
+    instagram: Instagram, facebook: Facebook, youtube: Play, whatsapp: MessageCircle,
+    tiktok: Play, twitter: X, website: Link2,
+  };
+
   return (
-    <footer className="border-t border-border bg-[var(--espresso)] px-6 py-14 text-center">
-      <Aperture className="mx-auto h-6 w-6 text-gold" strokeWidth={1.2} />
-      <p className="mt-4 font-display text-4xl text-cream">{settings?.site_name ?? "Dopamine"}</p>
-      <div className="mx-auto mt-6 h-px w-16 bg-gold" />
-      <p className="mt-6 text-[10px] uppercase tracking-[0.4em] text-cream/50">
-        {settings?.footer_text ?? "Copyright 2026 Dopamine by Tharindu Viduranga"}
-      </p>
+    <footer className="relative border-t border-gold/8 bg-[var(--espresso)] py-16 md:py-20">
+      <div className="mx-auto max-w-7xl px-6">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="flex flex-col items-center text-center"
+        >
+          <motion.nav variants={stagger} className="mt-10 flex flex-wrap justify-center gap-7">
+            {[["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]].map(([l, h]) => (
+              <motion.a key={l} variants={fadeIn} href={h} className="text-[8px] uppercase tracking-[0.45em] text-cream/35 transition-colors hover:text-gold">{l}</motion.a>
+            ))}
+          </motion.nav>
+
+          {socialLinks.length > 0 && (
+            <motion.div variants={fadeUp} className="mt-8 flex gap-2.5">
+              {socialLinks.map((link) => {
+                const SIcon = socialMap[link.platform] ?? Link2;
+                return (
+                  <a key={link.id} href={link.url} target="_blank" rel="noreferrer"
+                    className="flex h-8 w-8 items-center justify-center border border-gold/12 text-cream/30 transition-all hover:border-gold/35 hover:text-gold">
+                    <SIcon className="h-3.5 w-3.5" />
+                  </a>
+                );
+              })}
+            </motion.div>
+          )}
+
+          <motion.div variants={fadeUp} className="mt-10 h-px w-20 bg-gold/18" />
+          <motion.p variants={fadeIn} className="mt-6 text-[8px] text-cream/25">
+            {settings?.footer_text ?? "© 2026 Lov’Ceylon Photography · All rights reserved · www.lceylon.com"}
+          </motion.p>
+        </motion.div>
+      </div>
     </footer>
   );
 }
 
+// ─── Under Construction ───────────────────────────────────────────────────────
+function UnderConstruction({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.7, ease: "easeInOut" } }}
+      className="fixed inset-0 z-[400] flex flex-col items-center justify-center bg-[var(--espresso)] px-6 text-center"
+    >
+      {/* Radial glow */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_45%_at_50%_40%,rgba(201,169,110,0.12),transparent)]" />
+      <div className="absolute inset-0 grid-pattern opacity-10" />
+
+      {/* Corner marks */}
+      {[
+        "left-6 top-6 border-l border-t",
+        "right-6 top-6 border-r border-t",
+        "bottom-6 left-6 border-b border-l",
+        "bottom-6 right-6 border-b border-r",
+      ].map((cls, i) => (
+        <div key={i} className={`pointer-events-none absolute h-8 w-8 border-gold/40 ${cls}`} />
+      ))}
+
+      <motion.div
+        initial={{ opacity: 0, y: 28 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.9, ease }}
+        className="relative flex flex-col items-center gap-0"
+      >
+        {/* Rotating aperture */}
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+          className="mb-8 flex h-16 w-16 items-center justify-center rounded-full border border-gold/25"
+        >
+          <Aperture className="h-7 w-7 text-gold" strokeWidth={0.9} />
+        </motion.div>
+
+        <p className="mb-5 text-[9px] uppercase tracking-[0.65em] text-gold/60">Coming Soon</p>
+
+        <h1 className="font-display text-[clamp(3rem,10vw,7rem)] leading-none tracking-tight text-cream">
+          Lov<span className="text-gold">&#39;</span>Ceylon
+        </h1>
+
+        <div className="my-5 h-px w-48 bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
+
+        <p className="max-w-sm text-[13px] leading-relaxed text-cream/50">
+          We&#39;re putting the finishing touches on our new portfolio. Something beautiful is on its way.
+        </p>
+
+        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
+          <button
+            onClick={onDismiss}
+            className="group inline-flex items-center gap-2 border border-gold/40 bg-[rgba(14,8,4,0.4)] px-8 py-3.5 text-[10px] uppercase tracking-[0.42em] text-gold backdrop-blur-sm transition-all hover:bg-gold hover:text-[var(--espresso)]"
+          >
+            Visit Site Anyway
+            <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </button>
+        </div>
+
+        <p className="mt-8 text-[8px] uppercase tracking-[0.5em] text-cream/20">
+          Photography · Sri Lanka · Japan
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+function useReveal() {
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => { entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); },
+      { threshold: 0.12 },
+    );
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    const mo = new MutationObserver((muts) => {
+      muts.forEach((m) => m.addedNodes.forEach((n) => {
+        if (n.nodeType !== Node.ELEMENT_NODE) return;
+        const el = n as Element;
+        if (el.classList?.contains("reveal")) io.observe(el);
+        el.querySelectorAll?.(".reveal").forEach((c) => io.observe(c));
+      }));
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => { io.disconnect(); mo.disconnect(); };
+  }, []);
+}
+
 function Index() {
-  useReveal();
-  useThemeApplicator();
-  useSeoMeta();
   const { data: settings } = useSiteSettings();
   const { progress, visible } = useLoader();
+  const [showConstruction, setShowConstruction] = useState(
+    () => sessionStorage.getItem("lc_bypass") !== "1"
+  );
+  useReveal();
+  useSeoMeta({
+    title: "Lov’Ceylon Photography | Wedding · Fashion · Portrait · Sri Lanka · Japan",
+    description: settings?.meta_description ?? "Luxury wedding and portrait photography across Sri Lanka and Japan.",
+  });
+  useThemeApplicator(settings);
+
+  const marqueeWords = settings?.marquee_words
+    ?.split(",")
+    .map((w: string) => w.trim())
+    .filter(Boolean);
+
+  const show = {
+    marquee:      settings?.show_marquee      ?? true,
+    work:         settings?.show_work         ?? true,
+    story:        settings?.show_story        ?? true,
+    process:      settings?.show_process      ?? true,
+    services:     settings?.show_services     ?? true,
+    packages:     settings?.show_packages     ?? true,
+    testimonials: settings?.show_testimonials ?? true,
+  };
+
+  const handleDismiss = () => {
+    sessionStorage.setItem("lc_bypass", "1");
+    setShowConstruction(false);
+  };
 
   return (
     <>
-      <Toaster position="bottom-right" theme="dark" />
-      <Loader progress={progress} visible={visible} siteName={settings?.site_name} />
-      <main className="min-h-screen overflow-x-hidden bg-background text-cream">
-        <CustomCursor />
-        <Nav />
-        <Hero />
-        {settings?.show_marquee !== false && <Marquee />}
-        <About />
-        {settings?.show_story !== false && <Story />}
-        {settings?.show_work !== false && <Work />}
-        {settings?.show_process !== false && <Process />}
-        {settings?.show_services !== false && <Services />}
-        {settings?.show_packages !== false && <Packages />}
-        <Quote />
-        {settings?.show_testimonials !== false && <Testimonials />}
-        <Contact />
-        <Footer />
-      </main>
+      <AnimatePresence>
+        {showConstruction && <UnderConstruction onDismiss={handleDismiss} />}
+      </AnimatePresence>
+      <CustomCursor />
+      <Loader progress={progress} visible={visible} />
+      <Toaster />
+      <Nav />
+      <Hero />
+      {show.marquee     && <Marquee words={marqueeWords} />}
+      <Philosophy />
+      {show.work        && <Work />}
+      {show.story       && <About />}
+      {show.services    && <Services />}
+      {show.process     && <Process />}
+      {show.packages    && <Packages />}
+      {show.testimonials && <Testimonials />}
+      <Contact />
+      <Footer />
     </>
   );
 }

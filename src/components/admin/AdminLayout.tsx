@@ -6,8 +6,10 @@ import {
   Camera,
   ExternalLink,
   FolderOpen,
+  Heart,
   Images,
   Link2,
+  ListOrdered,
   LogOut,
   Mail,
   Menu,
@@ -24,15 +26,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { label: "Dashboard", to: "/admin", icon: BarChart3, exact: true },
-  { label: "Hero Slides", to: "/admin/hero-slides", icon: Images },
-  { label: "Photos", to: "/admin/photos", icon: Camera },
-  { label: "Categories", to: "/admin/categories", icon: FolderOpen },
-  { label: "Packages", to: "/admin/packages", icon: Package },
-  { label: "Testimonials", to: "/admin/testimonials", icon: Star },
-  { label: "Site Settings", to: "/admin/settings", icon: Settings },
-  { label: "Social Links", to: "/admin/social", icon: Link2 },
-  { label: "Submissions", to: "/admin/submissions", icon: Mail },
+  { label: "Dashboard",   to: "/admin",                icon: BarChart3,    exact: true },
+  { label: "Hero Slides", to: "/admin/hero-slides",    icon: Images },
+  { label: "Photos",      to: "/admin/photos",         icon: Camera },
+  { label: "Categories",  to: "/admin/categories",     icon: FolderOpen },
+  { label: "Services",    to: "/admin/services",       icon: Heart },
+  { label: "Process",     to: "/admin/process",        icon: ListOrdered },
+  { label: "Packages",    to: "/admin/packages",       icon: Package },
+  { label: "Testimonials",to: "/admin/testimonials",   icon: Star },
+  { label: "Site Settings",to: "/admin/settings",     icon: Settings },
+  { label: "Social Links",to: "/admin/social",         icon: Link2 },
+  { label: "Submissions", to: "/admin/submissions",    icon: Mail },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -57,7 +61,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-16 items-center gap-2.5 border-b border-[rgba(26,16,8,0.08)] px-5">
         <Aperture className="h-6 w-6 text-[#C9A96E]" />
         <span className="font-display text-[15px] font-semibold text-[#1a1008]">
-          Dopamine Admin
+          Lov&#39;Ceylon Admin
         </span>
       </div>
 
@@ -66,7 +70,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8B6B3D]">
           Content
         </div>
-        {navItems.slice(0, 6).map((item) => (
+        {navItems.slice(0, 8).map((item) => (
           <NavLink
             key={item.to}
             item={item}
@@ -79,7 +83,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <div className="mb-1 mt-5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8B6B3D]">
           Site
         </div>
-        {navItems.slice(6, 8).map((item) => (
+        {navItems.slice(8, 10).map((item) => (
           <NavLink
             key={item.to}
             item={item}
@@ -92,8 +96,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           Inbox
         </div>
         <NavLink
-          item={navItems[8]}
-          active={isActive(navItems[8].to)}
+          item={navItems[10]}
+          active={isActive(navItems[10].to)}
           badge={unreadCount}
           onClick={() => setSidebarOpen(false)}
         />
@@ -174,7 +178,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <Aperture className="h-5 w-5 text-[#C9A96E]" />
-          <span className="font-display text-sm font-semibold text-[#1a1008]">Dopamine Admin</span>
+          <span className="font-display text-sm font-semibold text-[#1a1008]">Lov&#39;Ceylon Admin</span>
           {unreadCount > 0 && (
             <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] bg-[#C9A96E] text-[#1a1008] hover:bg-[#C9A96E]">
               {unreadCount}

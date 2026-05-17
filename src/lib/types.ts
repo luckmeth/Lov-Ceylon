@@ -110,9 +110,31 @@ export interface ContactSubmission {
   id: string;
   name: string;
   email: string;
-  project_type: string;
+  phone: string | null;
+  service: string | null;
   message: string;
   is_read: boolean;
+  created_at: string;
+}
+
+export interface Service {
+  id: string;
+  num: string;
+  name: string;
+  description: string;
+  detail: string;
+  icon_name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProcessStep {
+  id: string;
+  num: string;
+  title: string;
+  description: string;
+  sort_order: number;
   created_at: string;
 }
 

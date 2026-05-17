@@ -235,7 +235,7 @@ function SocialDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Display label</FormLabel>
-                  <FormControl><Input placeholder="e.g. @dopamine.lk" {...field} /></FormControl>
+                  <FormControl><Input placeholder="e.g. @lovceylon" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -30,3 +30,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Claude worktrees and stray project copies
+.claude/
+dopamine-site-guide.html
+dopamine-visuals-studio-main/
