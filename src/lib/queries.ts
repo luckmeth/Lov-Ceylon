@@ -165,9 +165,10 @@ export const photosQuery = (category?: Category) => ({
       .order("sort_order");
     if (category) q = q.eq("category", category);
     const { data, error } = await q;
-    if (error) throw error;
-    return data as Photo[];
+    if (error) return [];
+    return (data ?? []) as Photo[];
   },
+  staleTime: 1000 * 60 * 5,
 });
 
 export const allPhotosQuery = () => ({

@@ -24,6 +24,10 @@ export function useThemeApplicator() {
     if (settings.color_accent) {
       root.style.setProperty("--bronze", settings.color_accent);
     }
+    if (settings.color_card_bg) {
+      root.style.setProperty("--card", settings.color_card_bg);
+      root.style.setProperty("--popover", settings.color_card_bg);
+    }
 
     // Fonts — override CSS variable + inject Google Fonts link tag
     const heading = settings.font_heading ?? "Cormorant Garamond";

@@ -205,63 +205,129 @@ function useLoader() {
 }
 
 function Loader({ progress, visible }: { progress: number; visible: boolean }) {
-  const messages = ["Calibrating light", "Framing emotion", "Building the experience"];
+  const messages = ["Calibrating light…", "Framing emotion…", "Building the experience…"];
   const step = Math.min(messages.length - 1, Math.floor(progress / 34));
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          exit={{ opacity: 0, transition: { duration: 0.9, ease: "easeInOut" } }}
-          className="fixed inset-0 z-[300] flex flex-col bg-[var(--espresso)]"
+          exit={{ opacity: 0, transition: { duration: 1.1, ease: "easeInOut" } }}
+          className="fixed inset-0 z-[300] flex flex-col overflow-hidden bg-[var(--espresso)]"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_50%_35%,rgba(201,169,110,0.15),transparent)]" />
-          <div className="absolute inset-0 grid-pattern opacity-15" />
+          {/* Ambient glow */}
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_38%,rgba(201,169,110,0.18),transparent)]" />
+          {/* Grid */}
+          <div className="absolute inset-0 grid-pattern opacity-[0.11]" />
 
-          <div className="relative flex flex-1 flex-col items-center justify-center">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              className="mb-10 flex h-20 w-20 items-center justify-center rounded-full border border-gold/25"
-            >
-              <Aperture className="h-9 w-9 text-gold" strokeWidth={0.9} />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.9 }}
-              className="text-center"
-            >
-              <p className="text-[9px] uppercase tracking-[0.6em] text-gold/60">Visual story in motion</p>
-              <h1 className="mt-4 font-display text-7xl leading-none text-cream md:text-9xl">
-                <SplitText text="Lov'Ceylon" delay={0.3} gap={0.06} duration={0.85} />
-              </h1>
-              <p className="mt-2 text-[8px] uppercase tracking-[0.5em] text-cream/30">Photography · Sri Lanka · Japan</p>
-            </motion.div>
-
-            <motion.p
-              key={step}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mt-12 text-[9px] uppercase tracking-[0.45em] text-cream/35"
-            >
-              {messages[step]}
-            </motion.p>
+          {/* Film-strip sprocket holes — left */}
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 flex w-7 flex-col items-center justify-center gap-[14px] opacity-20">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <div key={i} className="h-[18px] w-[13px] rounded-sm border border-gold/50" />
+            ))}
+          </div>
+          {/* Film-strip sprocket holes — right */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 flex w-7 flex-col items-center justify-center gap-[14px] opacity-20">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <div key={i} className="h-[18px] w-[13px] rounded-sm border border-gold/50" />
+            ))}
           </div>
 
-          <div className="relative px-8 pb-10">
-            <div className="mb-2 flex justify-between text-[9px] uppercase tracking-[0.4em] text-cream/25">
+          {/* Corner marks */}
+          {["left-10 top-10 border-l border-t", "right-10 top-10 border-r border-t",
+            "bottom-10 left-10 border-b border-l", "bottom-10 right-10 border-b border-r"].map((cls, i) => (
+            <div key={i} className={`pointer-events-none absolute h-7 w-7 border-gold/35 ${cls}`} />
+          ))}
+
+          {/* Main content */}
+          <div className="relative flex flex-1 flex-col items-center justify-center gap-8">
+            {/* Aperture with glow pulse */}
+            <motion.div className="relative">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
+                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-gold/28"
+              >
+                <Aperture className="h-8 w-8 text-gold" strokeWidth={0.85} />
+              </motion.div>
+              {/* Outer glow ring */}
+              <motion.div
+                animate={{ scale: [1, 1.55, 1], opacity: [0.25, 0, 0.25] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0 rounded-full bg-gold/18"
+              />
+            </motion.div>
+
+            {/* Brand block */}
+            <motion.div
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.95 }}
+              className="flex flex-col items-center gap-2 text-center"
+            >
+              <p className="text-[8.5px] uppercase tracking-[0.68em] text-gold/58">Visual story in motion</p>
+
+              {/* Animated brand name with shimmer sweep */}
+              <div className="relative overflow-hidden">
+                <h1 className="font-display text-[clamp(4rem,11vw,8rem)] leading-none tracking-tight text-cream [text-shadow:0_4px_40px_rgba(0,0,0,0.7)]">
+                  <SplitText text="Lov'Ceylon" delay={0.32} gap={0.058} duration={0.88} />
+                </h1>
+                {/* Gold shimmer sweep after letters settle */}
+                <motion.span
+                  aria-hidden
+                  initial={{ x: "-115%", skewX: -10 }}
+                  animate={{ x: "240%" }}
+                  transition={{ duration: 1.1, delay: 1.15, ease }}
+                  className="pointer-events-none absolute inset-0 block opacity-55"
+                  style={{ background: "linear-gradient(90deg,transparent 8%,rgba(255,255,255,0.55) 50%,transparent 92%)" }}
+                />
+              </div>
+
+              {/* Subtitle fade-in */}
+              <motion.p
+                initial={{ opacity: 0, letterSpacing: "0.2em" }}
+                animate={{ opacity: 1, letterSpacing: "0.55em" }}
+                transition={{ delay: 1.05, duration: 1.0 }}
+                className="text-[7.5px] uppercase text-cream/28"
+              >
+                Photography · Sri Lanka · Japan
+              </motion.p>
+            </motion.div>
+
+            {/* Cycling message */}
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={step}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.45 }}
+                className="text-[8.5px] uppercase tracking-[0.48em] text-cream/33"
+              >
+                {messages[step]}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+
+          {/* Progress bar */}
+          <div className="relative px-10 pb-11 md:px-16">
+            <div className="mb-2.5 flex justify-between text-[7.5px] uppercase tracking-[0.42em] text-cream/22">
               <span>Loading portfolio</span>
               <span>{String(progress).padStart(2, "0")}%</span>
             </div>
-            <div className="h-px overflow-hidden bg-white/8">
+            <div className="relative h-px overflow-hidden bg-white/[0.07]">
               <motion.div
                 animate={{ scaleX: progress / 100 }}
-                transition={{ ease: "easeOut" }}
-                className="h-full origin-left bg-gradient-to-r from-gold via-[#f2e0a0] to-gold"
+                transition={{ ease: "easeOut", duration: 0.4 }}
+                className="h-full origin-left bg-gradient-to-r from-gold/70 via-[#f2e0a0] to-gold"
               />
             </div>
+            {/* Glow dot */}
+            <motion.div
+              animate={{ left: `${Math.min(progress, 99)}%` }}
+              transition={{ ease: "easeOut", duration: 0.4 }}
+              className="absolute top-[calc(100%-11px-3px)] h-[6px] w-[6px] -translate-x-1/2 rounded-full bg-gold shadow-[0_0_10px_3px_rgba(201,169,110,0.65)]"
+            />
           </div>
         </motion.div>
       )}
@@ -275,6 +341,10 @@ function Nav() {
   const whatsapp = settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619";
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const siteName = settings?.site_name ?? "Lov'Ceylon";
+  const apoIdx = siteName.indexOf("'");
+  const nameBefore = apoIdx >= 0 ? siteName.slice(0, apoIdx) : siteName;
+  const nameAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -287,6 +357,8 @@ function Nav() {
   }, [open]);
 
   const links = [["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]];
+  const leftLinks = links.slice(0, 2);
+  const rightLinks = links.slice(2);
 
   return (
     <>
@@ -294,26 +366,86 @@ function Nav() {
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 2.2, duration: 0.9, ease }}
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${scrolled ? "border-b border-white/[0.07] bg-[rgba(14,8,4,0.9)] backdrop-blur-xl" : "bg-transparent"}`}
+        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "border-b border-white/[0.06] bg-[rgba(8,4,2,0.95)] backdrop-blur-2xl shadow-[0_4px_32px_rgba(0,0,0,0.5)]"
+            : "bg-gradient-to-b from-[rgba(0,0,0,0.65)] to-transparent backdrop-blur-[3px]"
+        }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:py-5">
-          <nav className="hidden items-center gap-8 md:flex">
-            {links.map(([label, href]) => (
-              <a key={label} href={href} className="story-link text-[10px] uppercase tracking-[0.38em] text-cream/70 transition-colors hover:text-gold">
+        <div className="mx-auto flex max-w-7xl items-center px-6 py-4 md:py-5 relative">
+
+          {/* Desktop — left links */}
+          <nav className="hidden md:flex items-center gap-7 flex-1">
+            {leftLinks.map(([label, href]) => (
+              <a
+                key={label} href={href}
+                className="story-link text-[9px] uppercase tracking-[0.42em] text-cream/82 transition-colors hover:text-gold [text-shadow:0_1px_10px_rgba(0,0,0,1),0_0_28px_rgba(0,0,0,0.9)]"
+              >
                 {label}
               </a>
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          {/* Desktop — center animated brand */}
+          <motion.a
+            href="#top"
+            initial={{ opacity: 0, y: -14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.55, duration: 0.9, ease }}
+            className="absolute left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center leading-none select-none cursor-pointer group"
+          >
+            <div className="flex items-baseline">
+              <span className="font-display text-[1.55rem] tracking-tight text-cream [text-shadow:0_2px_20px_rgba(0,0,0,1),0_0_40px_rgba(0,0,0,0.8)]">
+                {nameBefore}
+              </span>
+              <span className="relative font-display text-[1.55rem] tracking-tight text-gold overflow-hidden inline-block [text-shadow:0_0_18px_rgba(201,169,110,0.6)]">
+                &#39;
+                {/* Repeating gold shimmer sweep */}
+                <motion.span
+                  aria-hidden
+                  animate={{ x: ["-300%", "400%"] }}
+                  transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 4.5, ease: "easeInOut" }}
+                  className="pointer-events-none absolute inset-y-0 w-5 block"
+                  style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.95),transparent)" }}
+                />
+              </span>
+              <span className="font-display text-[1.55rem] tracking-tight text-cream [text-shadow:0_2px_20px_rgba(0,0,0,1),0_0_40px_rgba(0,0,0,0.8)]">
+                {nameAfter || "Ceylon"}
+              </span>
+            </div>
+            <span className="text-[5.5px] uppercase tracking-[0.62em] text-gold/58 mt-0.5">Photography</span>
+            {/* Hover underline */}
+            <div className="h-px w-0 bg-gradient-to-r from-transparent via-gold/55 to-transparent transition-all duration-500 group-hover:w-full mt-1" />
+          </motion.a>
+
+          {/* Desktop — right links + CTA */}
+          <div className="hidden md:flex items-center gap-7 flex-1 justify-end">
+            {rightLinks.map(([label, href]) => (
+              <a
+                key={label} href={href}
+                className="story-link text-[9px] uppercase tracking-[0.42em] text-cream/82 transition-colors hover:text-gold [text-shadow:0_1px_10px_rgba(0,0,0,1),0_0_28px_rgba(0,0,0,0.9)]"
+              >
+                {label}
+              </a>
+            ))}
             <a
               href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hi Lov'Ceylon! I'd like to book a photography session.")}`}
               target="_blank" rel="noreferrer"
-              className="hidden border border-gold/45 bg-[rgba(14,8,4,0.3)] px-5 py-2 text-[9px] uppercase tracking-[0.4em] text-gold backdrop-blur-sm transition-all hover:bg-gold hover:text-[var(--espresso)] md:inline-flex"
+              className="border border-gold/48 bg-[rgba(0,0,0,0.3)] px-5 py-2 text-[9px] uppercase tracking-[0.4em] text-gold backdrop-blur-sm transition-all hover:bg-gold hover:text-[var(--espresso)] hover:shadow-[0_0_20px_rgba(201,169,110,0.4)]"
             >
               Book Now
             </a>
-            <button onClick={() => setOpen(true)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center border border-white/20 text-cream transition-colors hover:border-gold hover:text-gold md:hidden">
+          </div>
+
+          {/* Mobile — brand + hamburger */}
+          <div className="flex w-full items-center justify-between md:hidden">
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-[1.25rem] text-cream [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
+                {nameBefore}<span className="text-gold">&#39;</span>{nameAfter || "Ceylon"}
+              </span>
+              <span className="text-[6px] uppercase tracking-[0.52em] text-gold/58 mt-0.5">Photography</span>
+            </div>
+            <button onClick={() => setOpen(true)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center border border-white/22 text-cream transition-colors hover:border-gold hover:text-gold">
               <Menu className="h-4 w-4" />
             </button>
           </div>
@@ -332,7 +464,9 @@ function Nav() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(201,169,110,0.1),transparent)]" />
             <div className="relative flex items-center justify-between">
               <div className="flex flex-col items-start leading-none">
-                <span className="font-display text-xl text-cream">Lov<span className="text-gold">&#39;</span>Ceylon</span>
+                <span className="font-display text-xl text-cream">
+                  {nameBefore}<span className="text-gold">&#39;</span>{nameAfter || "Ceylon"}
+                </span>
                 <span className="mt-0.5 text-[7px] uppercase tracking-[0.5em] text-gold/65">Photography</span>
               </div>
               <button onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center border border-white/20 text-cream">
@@ -365,7 +499,9 @@ function Nav() {
               >
                 Book a Session
               </a>
-              <p className="mt-5 text-center text-[8px] uppercase tracking-[0.5em] text-cream/20">Lov<span className="text-gold/60">&#39;</span>Ceylon · Sri Lanka · Japan</p>
+              <p className="mt-5 text-center text-[8px] uppercase tracking-[0.5em] text-cream/20">
+                {nameBefore}<span className="text-gold/60">&#39;</span>{nameAfter || "Ceylon"} · Sri Lanka · Japan
+              </p>
             </div>
           </motion.div>
         )}
@@ -1223,6 +1359,10 @@ function Contact() {
 function Footer() {
   const { data: settings } = useSiteSettings();
   const { data: socialLinks = [] } = useQuery(socialLinksQuery());
+  const siteName = settings?.site_name ?? "Lov’Ceylon";
+  const apoIdx = siteName.indexOf("’");
+  const nameBefore = apoIdx >= 0 ? siteName.slice(0, apoIdx) : siteName;
+  const nameAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
 
   const socialMap: Record<string, React.FC<{ className?: string }>> = {
     instagram: Instagram, facebook: Facebook, youtube: Play, whatsapp: MessageCircle,
@@ -1230,7 +1370,10 @@ function Footer() {
   };
 
   return (
-    <footer className="relative border-t border-gold/8 bg-[var(--espresso)] py-16 md:py-20">
+    <footer className="relative overflow-hidden border-t border-gold/8 bg-[var(--espresso)] py-20 md:py-28">
+      {/* Ambient radial glow */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_60%_at_50%_0%,rgba(201,169,110,0.07),transparent)]" />
+
       <div className="mx-auto max-w-7xl px-6">
         <motion.div
           variants={stagger}
@@ -1239,19 +1382,55 @@ function Footer() {
           viewport={{ once: true }}
           className="flex flex-col items-center text-center"
         >
+          {/* ── Large animated brand ── */}
+          <motion.div variants={scaleIn} className="relative">
+            <div className="relative overflow-hidden">
+              <h2 className="font-display text-[clamp(3.5rem,9vw,7rem)] leading-none tracking-tight text-cream [text-shadow:0_4px_40px_rgba(0,0,0,0.55)]">
+                {nameBefore}
+                <span className="relative text-gold inline-block overflow-hidden">
+                  &#39;
+                  {/* Shimmer sweep */}
+                  <motion.span
+                    aria-hidden
+                    animate={{ x: ["-350%", "500%"] }}
+                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 5, ease: "easeInOut" }}
+                    className="pointer-events-none absolute inset-y-0 w-6 block opacity-80"
+                    style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.95),transparent)" }}
+                  />
+                </span>
+                {nameAfter || "Ceylon"}
+              </h2>
+            </div>
+
+            {/* Animated underline */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.4, delay: 0.25, ease }}
+              className="mt-3 h-px origin-left bg-gradient-to-r from-gold/55 via-gold/30 to-transparent"
+            />
+
+            <p className="mt-2.5 text-[7px] uppercase tracking-[0.68em] text-gold/48">
+              Photography · Sri Lanka · Japan
+            </p>
+          </motion.div>
+
+          {/* Nav links */}
           <motion.nav variants={stagger} className="mt-10 flex flex-wrap justify-center gap-7">
             {[["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]].map(([l, h]) => (
               <motion.a key={l} variants={fadeIn} href={h} className="text-[8px] uppercase tracking-[0.45em] text-cream/35 transition-colors hover:text-gold">{l}</motion.a>
             ))}
           </motion.nav>
 
+          {/* Social icons */}
           {socialLinks.length > 0 && (
             <motion.div variants={fadeUp} className="mt-8 flex gap-2.5">
               {socialLinks.map((link) => {
                 const SIcon = socialMap[link.platform] ?? Link2;
                 return (
                   <a key={link.id} href={link.url} target="_blank" rel="noreferrer"
-                    className="flex h-8 w-8 items-center justify-center border border-gold/12 text-cream/30 transition-all hover:border-gold/35 hover:text-gold">
+                    className="flex h-8 w-8 items-center justify-center border border-gold/12 text-cream/30 transition-all hover:border-gold/38 hover:text-gold hover:shadow-[0_0_12px_rgba(201,169,110,0.2)]">
                     <SIcon className="h-3.5 w-3.5" />
                   </a>
                 );
@@ -1259,9 +1438,9 @@ function Footer() {
             </motion.div>
           )}
 
-          <motion.div variants={fadeUp} className="mt-10 h-px w-20 bg-gold/18" />
-          <motion.p variants={fadeIn} className="mt-6 text-[8px] text-cream/25">
-            {settings?.footer_text ?? "© 2026 Lov’Ceylon Photography · All rights reserved · www.lceylon.com"}
+          <motion.div variants={fadeUp} className="mt-10 h-px w-16 bg-gold/18" />
+          <motion.p variants={fadeIn} className="mt-5 text-[7.5px] text-cream/22">
+            {settings?.footer_text ?? `© 2026 ${siteName} Photography · All rights reserved`}
           </motion.p>
         </motion.div>
       </div>
@@ -1270,16 +1449,20 @@ function Footer() {
 }
 
 // ─── Under Construction ───────────────────────────────────────────────────────
-function UnderConstruction({ onDismiss }: { onDismiss: () => void }) {
+function UnderConstruction({ onDismiss, siteName }: { onDismiss: () => void; siteName: string }) {
+  const apoIdx = siteName.indexOf("'");
+  const nameBefore = apoIdx >= 0 ? siteName.slice(0, apoIdx) : siteName;
+  const nameAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.7, ease: "easeInOut" } }}
+      exit={{ opacity: 0, transition: { duration: 0.8, ease: "easeInOut" } }}
       className="fixed inset-0 z-[400] flex flex-col items-center justify-center bg-[var(--espresso)] px-6 text-center"
     >
       {/* Radial glow */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_45%_at_50%_40%,rgba(201,169,110,0.12),transparent)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_62%_48%_at_50%_38%,rgba(201,169,110,0.14),transparent)]" />
       <div className="absolute inset-0 grid-pattern opacity-10" />
 
       {/* Corner marks */}
@@ -1298,20 +1481,37 @@ function UnderConstruction({ onDismiss }: { onDismiss: () => void }) {
         transition={{ delay: 0.2, duration: 0.9, ease }}
         className="relative flex flex-col items-center gap-0"
       >
-        {/* Rotating aperture */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-          className="mb-8 flex h-16 w-16 items-center justify-center rounded-full border border-gold/25"
-        >
-          <Aperture className="h-7 w-7 text-gold" strokeWidth={0.9} />
-        </motion.div>
+        {/* Rotating aperture with glow */}
+        <div className="relative mb-8">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+            className="flex h-16 w-16 items-center justify-center rounded-full border border-gold/25"
+          >
+            <Aperture className="h-7 w-7 text-gold" strokeWidth={0.9} />
+          </motion.div>
+          <motion.div
+            animate={{ scale: [1, 1.6, 1], opacity: [0.2, 0, 0.2] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 rounded-full bg-gold/15"
+          />
+        </div>
 
         <p className="mb-5 text-[9px] uppercase tracking-[0.65em] text-gold/60">Coming Soon</p>
 
-        <h1 className="font-display text-[clamp(3rem,10vw,7rem)] leading-none tracking-tight text-cream">
-          Lov<span className="text-gold">&#39;</span>Ceylon
-        </h1>
+        <div className="relative overflow-hidden">
+          <h1 className="font-display text-[clamp(3rem,10vw,7rem)] leading-none tracking-tight text-cream [text-shadow:0_4px_36px_rgba(0,0,0,0.6)]">
+            {nameBefore}<span className="text-gold relative">&#39;
+              <motion.span
+                aria-hidden
+                animate={{ x: ["-300%", "400%"] }}
+                transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 4, ease: "easeInOut" }}
+                className="pointer-events-none absolute inset-y-0 w-5 block opacity-75"
+                style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.95),transparent)" }}
+              />
+            </span>{nameAfter || "Ceylon"}
+          </h1>
+        </div>
 
         <div className="my-5 h-px w-48 bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
 
@@ -1365,11 +1565,8 @@ function Index() {
     () => sessionStorage.getItem("lc_bypass") !== "1"
   );
   useReveal();
-  useSeoMeta({
-    title: "Lov’Ceylon Photography | Wedding · Fashion · Portrait · Sri Lanka · Japan",
-    description: settings?.meta_description ?? "Luxury wedding and portrait photography across Sri Lanka and Japan.",
-  });
-  useThemeApplicator(settings);
+  useSeoMeta();
+  useThemeApplicator();
 
   const marqueeWords = settings?.marquee_words
     ?.split(",")
@@ -1394,7 +1591,7 @@ function Index() {
   return (
     <>
       <AnimatePresence>
-        {showConstruction && <UnderConstruction onDismiss={handleDismiss} />}
+        {showConstruction && <UnderConstruction onDismiss={handleDismiss} siteName={settings?.site_name ?? "Lov'Ceylon"} />}
       </AnimatePresence>
       <CustomCursor />
       <Loader progress={progress} visible={visible} />
