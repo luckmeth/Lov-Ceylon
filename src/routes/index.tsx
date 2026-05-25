@@ -357,7 +357,7 @@ function Nav() {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  const links = [["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]];
+  const links = [["Story", "#about"], ["Gallery", "#work"], ["Packages", "#packages"], ["Services", "#services"], ["Contact", "#contact"]];
 
   return (
     <>
@@ -653,12 +653,20 @@ function Hero() {
                   Book Now
                   <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
-                <a
-                  href="#work"
+                <Link
+                  to="/work/$category"
+                  params={{ category: "all" }}
                   className="group inline-flex items-center gap-2 border border-white/38 bg-[rgba(14,8,4,0.38)] px-8 py-3.5 text-[10px] uppercase tracking-[0.42em] text-cream backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-gold/55 hover:text-gold"
                 >
                   Our Gallery
                   <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </Link>
+                <a
+                  href={`tel:${settings?.contact_phone ?? "+94777807619"}`}
+                  className="group inline-flex items-center gap-2 border border-white/18 bg-[rgba(14,8,4,0.25)] px-6 py-3.5 text-[10px] uppercase tracking-[0.42em] text-cream/75 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-gold/40 hover:text-gold"
+                >
+                  <Phone className="h-3 w-3" />
+                  Call Us
                 </a>
               </motion.div>
             </motion.div>
@@ -815,61 +823,59 @@ function Work() {
           </motion.div>
         </motion.div>
 
-        {/* Asymmetric masonry grid */}
-        {filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-            className="py-24 text-center">
+        {/* Masonry grid — direct animate (no whileInView) so photos always visible */}
+        {baseFiltered.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="py-24 text-center"
+          >
             <Aperture className="mx-auto mb-4 h-10 w-10 text-gold/20" strokeWidth={0.8} />
             <p className="font-display text-2xl text-cream/30">No photos yet</p>
             <p className="mt-2 text-[9px] uppercase tracking-[0.45em] text-cream/18">Add photos in the admin panel</p>
           </motion.div>
         ) : (
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-40px" }}
-          className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3"
-        >
-          {filtered.map((photo, i) => (
-            <motion.div
-              key={photo.id}
-              variants={scaleIn}
-              className={`group relative overflow-hidden ${i === 0 ? "col-span-2 md:col-span-2" : ""} ${i === 3 ? "md:col-span-2" : ""}`}
-            >
-              <Link to="/work/$category" params={{ category: photo.category ?? "all" }}>
-                <div className={`relative overflow-hidden ${i === 0 ? "aspect-[16/9]" : "aspect-square"}`}>
-                  <img
-                    src={photo.url}
-                    alt={photo.title ?? ""}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.08]"
-                  />
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-[var(--espresso)]/0 transition-all duration-500 group-hover:bg-[var(--espresso)]/55" />
-                  {/* Inset border reveal */}
-                  <div className="absolute inset-0 border border-transparent transition-all duration-500 group-hover:inset-3 group-hover:border-gold/40" />
-                  {/* Caption slide up */}
-                  <div className="absolute bottom-0 left-0 right-0 translate-y-full p-5 transition-transform duration-500 group-hover:translate-y-0">
-                    <p className="text-[8px] uppercase tracking-[0.5em] text-gold">{photo.category}</p>
-                    <p className="mt-0.5 font-display text-xl text-cream">{photo.title}</p>
-                  </div>
-                  {/* Arrow */}
-                  <div className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center border border-transparent text-transparent transition-all duration-500 group-hover:border-gold/55 group-hover:text-gold">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
+            <AnimatePresence mode="popLayout">
+              {filtered.map((photo, i) => (
+                <motion.div
+                  key={photo.id}
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.94 }}
+                  transition={{ duration: 0.55, delay: i * 0.05, ease }}
+                  className={`group relative overflow-hidden ${i === 0 ? "col-span-2 md:col-span-2" : ""} ${i === 3 ? "md:col-span-2" : ""}`}
+                >
+                  <Link to="/work/$category" params={{ category: photo.category ?? "all" }}>
+                    <div className={`relative overflow-hidden ${i === 0 ? "aspect-[16/9]" : "aspect-square"}`}>
+                      <img
+                        src={photo.url}
+                        alt={photo.title ?? ""}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.08]"
+                      />
+                      <div className="absolute inset-0 bg-[var(--espresso)]/0 transition-all duration-500 group-hover:bg-[var(--espresso)]/50" />
+                      <div className="absolute inset-0 border border-transparent transition-all duration-500 group-hover:inset-3 group-hover:border-gold/40" />
+                      <div className="absolute bottom-0 left-0 right-0 translate-y-full p-5 transition-transform duration-500 group-hover:translate-y-0">
+                        <p className="text-[8px] uppercase tracking-[0.5em] text-gold">{photo.category}</p>
+                        <p className="mt-0.5 font-display text-xl text-cream">{photo.title}</p>
+                      </div>
+                      <div className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center border border-transparent text-transparent transition-all duration-500 group-hover:border-gold/55 group-hover:text-gold">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         )}
 
         <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
           className="mt-12 text-center"
         >
           <Link
@@ -1075,7 +1081,7 @@ function Packages() {
           className="mb-16 text-center"
         >
           <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">Investment</motion.p>
-          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Collections</motion.h2>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Packages</motion.h2>
           <motion.p variants={fadeUp} className="mt-3 text-sm text-cream/40">Tailored packages for every love story</motion.p>
         </motion.div>
 
@@ -1418,7 +1424,7 @@ function Footer() {
 
           {/* Nav links */}
           <motion.nav variants={stagger} className="mt-10 flex flex-wrap justify-center gap-7">
-            {[["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]].map(([l, h]) => (
+            {[["Story", "#about"], ["Gallery", "#work"], ["Packages", "#packages"], ["Services", "#services"], ["Contact", "#contact"]].map(([l, h]) => (
               <motion.a key={l} variants={fadeIn} href={h} className="text-[8px] uppercase tracking-[0.45em] text-cream/35 transition-colors hover:text-gold">{l}</motion.a>
             ))}
           </motion.nav>
@@ -1597,6 +1603,16 @@ function Index() {
       <CustomCursor />
       <Loader progress={progress} visible={visible} />
       <Toaster />
+      {/* Floating call button — mobile only */}
+      {settings?.contact_phone && (
+        <a
+          href={`tel:${settings.contact_phone}`}
+          aria-label="Call us"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gold shadow-[0_4px_28px_rgba(201,169,110,0.55)] transition-all hover:brightness-110 active:scale-95 md:hidden"
+        >
+          <Phone className="h-5 w-5 text-[var(--espresso)]" />
+        </a>
+      )}
       <Nav />
       <Hero />
       {show.marquee     && <Marquee words={marqueeWords} />}
