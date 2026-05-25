@@ -344,7 +344,8 @@ function Nav() {
   const siteName = settings?.site_name ?? "Lov'Ceylon";
   const apoIdx = siteName.indexOf("'");
   const nameBefore = apoIdx >= 0 ? siteName.slice(0, apoIdx) : siteName;
-  const nameAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+  const fullAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+  const nameAfter = fullAfter.includes(" ") ? fullAfter.slice(0, fullAfter.indexOf(" ")) : fullAfter;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -357,8 +358,6 @@ function Nav() {
   }, [open]);
 
   const links = [["Story", "#about"], ["Gallery", "#work"], ["Collections", "#packages"], ["Services", "#services"], ["Contact", "#contact"]];
-  const leftLinks = links.slice(0, 2);
-  const rightLinks = links.slice(2);
 
   return (
     <>
@@ -372,35 +371,22 @@ function Nav() {
             : "bg-gradient-to-b from-[rgba(0,0,0,0.65)] to-transparent backdrop-blur-[3px]"
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center px-6 py-4 md:py-5 relative">
+        <div className="mx-auto flex max-w-7xl items-center px-6 py-4 md:py-5">
 
-          {/* Desktop — left links */}
-          <nav className="hidden md:flex items-center gap-7 flex-1">
-            {leftLinks.map(([label, href]) => (
-              <a
-                key={label} href={href}
-                className="story-link text-[9px] uppercase tracking-[0.42em] text-cream/82 transition-colors hover:text-gold [text-shadow:0_1px_10px_rgba(0,0,0,1),0_0_28px_rgba(0,0,0,0.9)]"
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-
-          {/* Desktop — center animated brand */}
+          {/* Desktop — left brand */}
           <motion.a
             href="#top"
             initial={{ opacity: 0, y: -14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 2.55, duration: 0.9, ease }}
-            className="absolute left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center leading-none select-none cursor-pointer group"
+            className="hidden md:flex flex-col items-start leading-none select-none cursor-pointer group shrink-0"
           >
             <div className="flex items-baseline">
-              <span className="font-display text-[1.55rem] tracking-tight text-cream [text-shadow:0_2px_20px_rgba(0,0,0,1),0_0_40px_rgba(0,0,0,0.8)]">
+              <span className="font-display text-[1.45rem] tracking-tight text-cream [text-shadow:0_2px_20px_rgba(0,0,0,1),0_0_40px_rgba(0,0,0,0.8)]">
                 {nameBefore}
               </span>
-              <span className="relative font-display text-[1.55rem] tracking-tight text-gold overflow-hidden inline-block [text-shadow:0_0_18px_rgba(201,169,110,0.6)]">
+              <span className="relative font-display text-[1.45rem] tracking-tight text-gold overflow-hidden inline-block [text-shadow:0_0_18px_rgba(201,169,110,0.6)]">
                 &#39;
-                {/* Repeating gold shimmer sweep */}
                 <motion.span
                   aria-hidden
                   animate={{ x: ["-300%", "400%"] }}
@@ -409,25 +395,27 @@ function Nav() {
                   style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.95),transparent)" }}
                 />
               </span>
-              <span className="font-display text-[1.55rem] tracking-tight text-cream [text-shadow:0_2px_20px_rgba(0,0,0,1),0_0_40px_rgba(0,0,0,0.8)]">
+              <span className="font-display text-[1.45rem] tracking-tight text-cream [text-shadow:0_2px_20px_rgba(0,0,0,1),0_0_40px_rgba(0,0,0,0.8)]">
                 {nameAfter || "Ceylon"}
               </span>
             </div>
             <span className="text-[5.5px] uppercase tracking-[0.62em] text-gold/58 mt-0.5">Photography</span>
-            {/* Hover underline */}
-            <div className="h-px w-0 bg-gradient-to-r from-transparent via-gold/55 to-transparent transition-all duration-500 group-hover:w-full mt-1" />
           </motion.a>
 
-          {/* Desktop — right links + CTA */}
-          <div className="hidden md:flex items-center gap-7 flex-1 justify-end">
-            {rightLinks.map(([label, href]) => (
+          {/* Desktop — center links */}
+          <nav className="hidden md:flex flex-1 items-center justify-center gap-6">
+            {links.map(([label, href]) => (
               <a
                 key={label} href={href}
-                className="story-link text-[9px] uppercase tracking-[0.42em] text-cream/82 transition-colors hover:text-gold [text-shadow:0_1px_10px_rgba(0,0,0,1),0_0_28px_rgba(0,0,0,0.9)]"
+                className="text-[9px] uppercase tracking-[0.42em] text-cream/82 transition-colors hover:text-gold [text-shadow:0_1px_10px_rgba(0,0,0,1),0_0_28px_rgba(0,0,0,0.9)]"
               >
                 {label}
               </a>
             ))}
+          </nav>
+
+          {/* Desktop — right Book Now */}
+          <div className="hidden md:flex items-center shrink-0">
             <a
               href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hi Lov'Ceylon! I'd like to book a photography session.")}`}
               target="_blank" rel="noreferrer"
@@ -658,10 +646,11 @@ function Hero() {
                 className="mt-10 flex flex-wrap items-center justify-center gap-4"
               >
                 <a
-                  href="#packages"
+                  href={`https://wa.me/${settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619"}?text=${encodeURIComponent("Hi Lov'Ceylon! I'd like to book a photography session.")}`}
+                  target="_blank" rel="noreferrer"
                   className="group inline-flex items-center gap-2 bg-gold px-8 py-3.5 text-[10px] uppercase tracking-[0.42em] text-[var(--espresso)] shadow-[0_6px_30px_rgba(201,169,110,0.4)] transition-all hover:-translate-y-0.5 hover:brightness-110"
                 >
-                  View Packages
+                  Book Now
                   <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
                 <a
@@ -784,10 +773,20 @@ function Work() {
   const { data: photos = [] } = useQuery(photosQuery());
   const { data: categories = [] } = useQuery(categoriesQuery());
   const [activeCat, setActiveCat] = useState("all");
+  const [displayOffset, setDisplayOffset] = useState(0);
 
-  const filtered = activeCat === "all"
-    ? photos.slice(0, PHOTOS_PREVIEW_LIMIT)
-    : photos.filter((p) => p.category === activeCat).slice(0, PHOTOS_PREVIEW_LIMIT);
+  const baseFiltered = activeCat === "all" ? photos : photos.filter((p) => p.category === activeCat);
+  const filtered = baseFiltered.length <= PHOTOS_PREVIEW_LIMIT
+    ? baseFiltered
+    : Array.from({ length: PHOTOS_PREVIEW_LIMIT }, (_, i) => baseFiltered[(displayOffset + i) % baseFiltered.length]);
+
+  useEffect(() => { setDisplayOffset(0); }, [activeCat]);
+
+  useEffect(() => {
+    if (baseFiltered.length <= PHOTOS_PREVIEW_LIMIT) return;
+    const timer = setInterval(() => setDisplayOffset((p) => (p + 1) % baseFiltered.length), 3500);
+    return () => clearInterval(timer);
+  }, [baseFiltered.length, activeCat]);
 
   return (
     <section id="work" className="relative bg-[var(--background)] py-24 md:py-40">
@@ -1362,7 +1361,8 @@ function Footer() {
   const siteName = settings?.site_name ?? "Lov’Ceylon";
   const apoIdx = siteName.indexOf("’");
   const nameBefore = apoIdx >= 0 ? siteName.slice(0, apoIdx) : siteName;
-  const nameAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+  const fullAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+  const nameAfter = fullAfter.includes(" ") ? fullAfter.slice(0, fullAfter.indexOf(" ")) : fullAfter;
 
   const socialMap: Record<string, React.FC<{ className?: string }>> = {
     instagram: Instagram, facebook: Facebook, youtube: Play, whatsapp: MessageCircle,
@@ -1385,7 +1385,7 @@ function Footer() {
           {/* ── Large animated brand ── */}
           <motion.div variants={scaleIn} className="relative">
             <div className="relative overflow-hidden">
-              <h2 className="font-display text-[clamp(3.5rem,9vw,7rem)] leading-none tracking-tight text-cream [text-shadow:0_4px_40px_rgba(0,0,0,0.55)]">
+              <h2 className="font-display text-[clamp(1.8rem,4.5vw,3rem)] leading-none tracking-tight text-cream [text-shadow:0_4px_40px_rgba(0,0,0,0.55)]">
                 {nameBefore}
                 <span className="relative text-gold inline-block overflow-hidden">
                   &#39;
@@ -1452,7 +1452,8 @@ function Footer() {
 function UnderConstruction({ onDismiss, siteName }: { onDismiss: () => void; siteName: string }) {
   const apoIdx = siteName.indexOf("'");
   const nameBefore = apoIdx >= 0 ? siteName.slice(0, apoIdx) : siteName;
-  const nameAfter = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+  const fullAfterUC = apoIdx >= 0 ? siteName.slice(apoIdx + 1) : "";
+  const nameAfter = fullAfterUC.includes(" ") ? fullAfterUC.slice(0, fullAfterUC.indexOf(" ")) : fullAfterUC;
 
   return (
     <motion.div

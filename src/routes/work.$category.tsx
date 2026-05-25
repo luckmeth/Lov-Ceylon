@@ -112,8 +112,9 @@ function WorkGallery() {
   const { data: categories = [] } = useQuery(categoriesQuery());
   const { data: allPhotos = [] } = useQuery(photosQuery());
 
-  const category = categories.find((c) => c.slug === slug);
-  const photos = allPhotos.filter((p) => p.category === slug);
+  const isAll = slug === "all";
+  const category = isAll ? null : categories.find((c) => c.slug === slug);
+  const photos = isAll ? allPhotos : allPhotos.filter((p) => p.category === slug);
 
   return (
     <div className="min-h-screen bg-[var(--espresso)]">
@@ -155,7 +156,7 @@ function WorkGallery() {
               transition={{ duration: 1, delay: 0.15, ease }}
               className="font-display text-5xl leading-none text-cream md:text-7xl lg:text-9xl"
             >
-              {category?.label ?? slug}
+              {isAll ? "All Photos" : (category?.label ?? slug)}
             </motion.h1>
           </div>
           {category?.tag && (
@@ -179,6 +180,15 @@ function WorkGallery() {
           className="border-b border-white/[0.07] px-6 pb-4"
         >
           <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto pb-2 scrollbar-none">
+            <Link
+              to="/work/$category"
+              params={{ category: "all" }}
+              className={`shrink-0 border px-5 py-2 text-[9px] uppercase tracking-[0.4em] transition-all ${
+                isAll ? "border-gold bg-gold/10 text-gold" : "border-white/10 text-cream/45 hover:border-gold/35 hover:text-cream/75"
+              }`}
+            >
+              All
+            </Link>
             {categories.map((cat) => (
               <Link
                 key={cat.slug}
