@@ -32,11 +32,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/admin/packages")({ component: AdminPackages });
 
+const COLLECTIONS = ["Wedding Collection", "Homecoming Collection", "Pre-Casual Collection"] as const;
+
 const schema = z.object({
   name: z.string().min(1, "Required"),
   description: z.string(),
   price: z.string().min(1, "Required"),
   features: z.string(),
+  collection: z.string().min(1, "Required"),
   is_popular: z.boolean(),
   is_active: z.boolean(),
   sort_order: z.number(),
@@ -99,6 +102,11 @@ function AdminPackages() {
                     <Badge className="bg-[#C9A96E]/15 text-[#8B6B3D] hover:bg-[#C9A96E]/15 gap-1">
                       <Star className="h-2.5 w-2.5" />
                       Popular
+                    </Badge>
+                  )}
+                  {pkg.collection && (
+                    <Badge variant="outline" className="text-[10px] text-[#8B6B3D] border-[#C9A96E]/30">
+                      {pkg.collection}
                     </Badge>
                   )}
                   {!pkg.is_active && (
@@ -178,6 +186,7 @@ function PackageDialog({
       description: pkg?.description ?? "",
       price: pkg?.price ?? "",
       features: "",
+      collection: pkg?.collection ?? "Wedding Collection",
       is_popular: pkg?.is_popular ?? false,
       is_active: pkg?.is_active ?? true,
       sort_order: pkg?.sort_order ?? sortOrder,
@@ -191,6 +200,7 @@ function PackageDialog({
         description: pkg?.description ?? "",
         price: pkg?.price ?? "",
         features: "",
+        collection: pkg?.collection ?? "Wedding Collection",
         is_popular: pkg?.is_popular ?? false,
         is_active: pkg?.is_active ?? true,
         sort_order: pkg?.sort_order ?? sortOrder,
@@ -212,6 +222,7 @@ function PackageDialog({
         description: data.description,
         price: data.price,
         features,
+        collection: data.collection,
         is_popular: data.is_popular,
         is_active: data.is_active,
         sort_order: data.sort_order,
@@ -263,6 +274,26 @@ function PackageDialog({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl><Textarea rows={2} {...field} /></FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="collection"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Collection</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      {COLLECTIONS.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

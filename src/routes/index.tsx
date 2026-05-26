@@ -44,7 +44,7 @@ import {
   socialLinksQuery,
   submitContactForm,
 } from "@/lib/queries";
-import type { Photo, WorkCategory } from "@/lib/types";
+import type { Package, Photo, SiteSettings, WorkCategory } from "@/lib/types";
 import { getBrand } from "@/lib/brand";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useSeoMeta } from "@/hooks/use-seo-meta";
@@ -1073,72 +1073,180 @@ function Process() {
   );
 }
 
+// ─── Package Card ─────────────────────────────────────────────────────────────
+function PackageCard({
+  pkg,
+  idx,
+  settings,
+}: {
+  pkg: Package;
+  idx: number;
+  settings: SiteSettings | undefined;
+}) {
+  return (
+    <motion.div
+      key={pkg.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: idx * 0.07, ease }}
+      whileHover={{ y: -6 }}
+      className={`relative flex flex-col border p-8 backdrop-blur-sm ${
+        pkg.is_popular
+          ? "border-gold bg-[rgba(14,8,4,0.75)] shadow-[0_0_80px_rgba(201,169,110,0.18),inset_0_0_0_1px_rgba(201,169,110,0.08)]"
+          : "border-gold/18 bg-[rgba(14,8,4,0.60)] hover:border-gold/35"
+      }`}
+    >
+      {pkg.is_popular && (
+        <div className="absolute -top-px left-1/2 -translate-x-1/2 whitespace-nowrap bg-gold px-4 py-1 text-[8px] uppercase tracking-[0.5em] text-[var(--espresso)]">
+          Most Popular
+        </div>
+      )}
+      <p className="text-[10px] uppercase tracking-[0.45em] text-gold/80">{pkg.name}</p>
+      <p className="mt-3 font-display text-4xl text-cream">{pkg.price}</p>
+      <p className="mt-3 text-sm leading-relaxed text-cream/70">{pkg.description}</p>
+      <div className="my-6 h-px bg-gold/15" />
+      <ul className="flex-1 space-y-3">
+        {((pkg.features ?? []) as string[]).map((f: string) => (
+          <li key={f} className="flex items-start gap-3 text-sm text-cream/80">
+            <span className="mt-2 h-px w-4 shrink-0 bg-gold/55" />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <a
+        href={`https://wa.me/${settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619"}?text=${encodeURIComponent(`Hi! I'm interested in the ${pkg.name} package.`)}`}
+        target="_blank"
+        rel="noreferrer"
+        className={`mt-8 block py-3.5 text-center text-[10px] uppercase tracking-[0.4em] transition-all duration-300 ${
+          pkg.is_popular
+            ? "bg-gold text-[var(--espresso)] hover:brightness-110"
+            : "border border-gold/38 text-gold hover:bg-gold/10"
+        }`}
+      >
+        Enquire on WhatsApp
+      </a>
+    </motion.div>
+  );
+}
+
 // ─── Packages ─────────────────────────────────────────────────────────────────
 function Packages() {
   const { data: packages = [] } = useQuery(publicPackagesQuery());
   const { data: settings } = useSiteSettings();
+  const { data: slides = [] } = useQuery(heroSlidesQuery());
+  const [bgIndex, setBgIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState("Wedding Collection");
+
+  const COLLECTIONS = ["Wedding Collection", "Homecoming Collection", "Pre-Casual Collection"] as const;
+  type Collection = typeof COLLECTIONS[number];
+
+  const byCollection = (col: Collection) =>
+    packages.filter((p) => (p.collection ?? "Wedding Collection") === col);
+
+  const colsClass = (col: Collection) =>
+    col === "Pre-Casual Collection" ? "md:grid-cols-2" : "md:grid-cols-3";
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = setInterval(() => setBgIndex((i) => (i + 1) % slides.length), 7000);
+    return () => clearInterval(t);
+  }, [slides.length]);
 
   if (packages.length === 0) return null;
 
+  const activeCollection = activeTab as Collection;
+
   return (
-    <section id="packages" className="relative bg-[var(--background)] py-28 md:py-44">
+    <section id="packages" className="relative overflow-hidden py-28 md:py-44">
+      {/* ── Background photo slideshow ── */}
+      <div className="absolute inset-0 bg-[var(--espresso)]">
+        {slides.map((slide, i) => (
+          <motion.div
+            key={slide.id}
+            animate={{ opacity: i === bgIndex ? 1 : 0 }}
+            transition={{ duration: 2, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <div
+              className={`absolute inset-0 scale-110 bg-cover bg-center ${i === bgIndex ? "ken-burns" : ""}`}
+              style={{ backgroundImage: `url(${slide.image_url})` }}
+            />
+          </motion.div>
+        ))}
+      </div>
+      {/* Dark gradient overlay for readability */}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,8,4,0.80)_0%,rgba(14,8,4,0.68)_50%,rgba(14,8,4,0.88)_100%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_0%,rgba(201,169,110,0.06),transparent)]" />
 
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="relative z-10 mx-auto max-w-7xl px-6">
+        {/* Heading */}
         <motion.div
           variants={stagger}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
-          className="mb-16 text-center"
+          className="mb-14 text-center"
         >
-          <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">Investment</motion.p>
-          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">Packages</motion.h2>
-          <motion.p variants={fadeUp} className="mt-3 text-sm text-cream/40">Tailored packages for every love story</motion.p>
+          <motion.p variants={fadeUp} className="mb-3 text-[9px] uppercase tracking-[0.58em] text-gold/55">
+            Investment
+          </motion.p>
+          <motion.h2 variants={fadeUp} className="font-display text-4xl text-cream md:text-5xl">
+            Packages
+          </motion.h2>
+          <motion.p variants={fadeUp} className="mt-3 text-sm text-cream/55">
+            Tailored packages for every love story
+          </motion.p>
         </motion.div>
 
+        {/* ── Collection tabs ── */}
         <motion.div
-          variants={stagger}
+          variants={fadeUp}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-40px" }}
-          className="grid gap-5 md:grid-cols-3"
+          viewport={{ once: true }}
+          className="mb-12 flex justify-center"
         >
-          {packages.map((pkg) => (
-            <motion.div
-              key={pkg.id}
-              variants={fadeUp}
-              whileHover={{ y: -7 }}
-              transition={{ duration: 0.35 }}
-              className={`relative flex flex-col border p-9 ${pkg.is_popular ? "border-gold bg-[rgba(201,169,110,0.05)] shadow-[0_0_80px_rgba(201,169,110,0.1)]" : "border-gold/12 hover:border-gold/28"}`}
-            >
-              {pkg.is_popular && (
-                <div className="absolute -top-px left-1/2 -translate-x-1/2 whitespace-nowrap bg-gold px-4 py-1 text-[8px] uppercase tracking-[0.5em] text-[var(--espresso)]">
-                  Most Popular
-                </div>
-              )}
-              <p className="text-[8px] uppercase tracking-[0.5em] text-gold/55">{pkg.name}</p>
-              <p className="mt-3 font-display text-4xl text-cream">{pkg.price}</p>
-              <p className="mt-3 text-sm leading-relaxed text-cream/50">{pkg.description}</p>
-              <div className="my-7 h-px bg-gold/12" />
-              <ul className="flex-1 space-y-3">
-                {((pkg.features ?? []) as string[]).map((f: string) => (
-                  <li key={f} className="flex items-center gap-3 text-sm text-cream/65">
-                    <span className="h-px w-4 shrink-0 bg-gold/45" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href={`https://wa.me/${settings?.contact_phone?.replace(/\D/g, "") ?? "94777807619"}?text=${encodeURIComponent(`Hi! I'm interested in the ${pkg.name} package.`)}`}
-                target="_blank" rel="noreferrer"
-                className={`mt-9 block py-3.5 text-center text-[10px] uppercase tracking-[0.4em] transition-all ${pkg.is_popular ? "bg-gold text-[var(--espresso)] hover:brightness-110" : "border border-gold/35 text-gold hover:bg-gold/8"}`}
+          <div className="flex overflow-x-auto scrollbar-none border border-gold/18 bg-[rgba(14,8,4,0.55)] backdrop-blur-sm">
+            {COLLECTIONS.map((col) => (
+              <button
+                key={col}
+                onClick={() => setActiveTab(col)}
+                className={`relative flex-shrink-0 px-5 py-3.5 text-[9px] uppercase tracking-[0.4em] transition-colors duration-300 ${
+                  activeTab === col ? "text-gold" : "text-cream/45 hover:text-cream/75"
+                }`}
               >
-                Enquire
-              </a>
-            </motion.div>
-          ))}
+                {activeTab === col && (
+                  <motion.span
+                    layoutId="pkg-tab-indicator"
+                    className="absolute inset-x-0 bottom-0 h-px bg-gold"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
+                {col === "Wedding Collection" && "Wedding"}
+                {col === "Homecoming Collection" && "Homecoming"}
+                {col === "Pre-Casual Collection" && "Pre-Casual"}
+              </button>
+            ))}
+          </div>
         </motion.div>
+
+        {/* ── Package grid with AnimatePresence tab switch ── */}
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            transition={{ duration: 0.4, ease }}
+            className={`grid gap-5 ${colsClass(activeCollection)} ${
+              activeCollection === "Pre-Casual Collection" ? "max-w-2xl mx-auto" : ""
+            }`}
+          >
+            {byCollection(activeCollection).map((pkg, idx) => (
+              <PackageCard key={pkg.id} pkg={pkg} idx={idx} settings={settings} />
+            ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </section>
   );

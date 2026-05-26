@@ -93,6 +93,7 @@ export interface Package {
   is_popular: boolean;
   is_active: boolean;
   sort_order: number;
+  collection?: string;
   created_at: string;
 }
 
