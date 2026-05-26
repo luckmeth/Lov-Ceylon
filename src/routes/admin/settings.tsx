@@ -130,8 +130,8 @@ function AdminSettings() {
       quote_author: "",
       footer_text: "",
       color_primary: "#C9A96E",
-      color_background: "#2C1F14",
-      color_text: "#F2EDE4",
+      color_background: "#0e0804",
+      color_text: "#F5ECD7",
       color_accent: "#8B6B3D",
       font_heading: "Cormorant Garamond",
       font_body: "DM Sans",
@@ -158,8 +158,8 @@ function AdminSettings() {
         logo_url: settings.logo_url ?? "",
         contact_phone: settings.contact_phone ?? "",
         color_primary: settings.color_primary || "#C9A96E",
-        color_background: settings.color_background || "#2C1F14",
-        color_text: settings.color_text || "#F2EDE4",
+        color_background: settings.color_background || "#0e0804",
+        color_text: settings.color_text || "#F5ECD7",
         color_accent: settings.color_accent || "#8B6B3D",
         font_heading: settings.font_heading ?? "Cormorant Garamond",
         font_body: settings.font_body ?? "DM Sans",
@@ -245,29 +245,29 @@ function AdminSettings() {
               <ColorField
                 form={form}
                 name="color_primary"
-                label="Primary Color"
-                description="Gold accent — buttons, headings, highlights"
+                label="Primary / Gold Color"
+                description="Gold accent — buttons, headings, tab indicators, highlights"
                 defaultColor="#C9A96E"
               />
               <ColorField
                 form={form}
                 name="color_background"
-                label="Background Color"
-                description="Main dark background of the site"
-                defaultColor="#2C1F14"
+                label="Dark Background Color"
+                description="Base dark tone (hero, about, packages, footer). Lighter sections auto-derive from this."
+                defaultColor="#0e0804"
               />
               <ColorField
                 form={form}
                 name="color_text"
-                label="Text Color"
-                description="Body text — the cream/light foreground color"
-                defaultColor="#F2EDE4"
+                label="Text / Cream Color"
+                description="Body and heading text on dark backgrounds"
+                defaultColor="#F5ECD7"
               />
               <ColorField
                 form={form}
                 name="color_accent"
-                label="Accent Color"
-                description="Secondary bronze/warm accent"
+                label="Accent / Bronze Color"
+                description="Secondary accent — subtle borders, muted labels, hover tints"
                 defaultColor="#8B6B3D"
               />
             </div>
