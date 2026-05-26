@@ -8,25 +8,23 @@ export function useThemeApplicator() {
     if (!settings) return;
     const root = document.documentElement;
 
-    // Colors — override the hardcoded CSS variables from styles.css
-    if (settings.color_primary) {
-      root.style.setProperty("--gold", settings.color_primary);
-      root.style.setProperty("--primary", settings.color_primary);
-    }
-    if (settings.color_background) {
-      root.style.setProperty("--background", settings.color_background);
-      root.style.setProperty("--espresso", settings.color_background);
-    }
-    if (settings.color_text) {
-      root.style.setProperty("--cream", settings.color_text);
-      root.style.setProperty("--foreground", settings.color_text);
-    }
-    if (settings.color_accent) {
-      root.style.setProperty("--bronze", settings.color_accent);
-    }
+    // Colors — always apply; use brand defaults when DB value is empty/unset
+    const gold   = settings.color_primary    || "#C9A96E";
+    const bg     = settings.color_background || "#0e0804";
+    const cream  = settings.color_text       || "#F5ECD7";
+    const bronze = settings.color_accent     || "#8B6B3D";
+
+    root.style.setProperty("--gold",       gold);
+    root.style.setProperty("--primary",    gold);
+    root.style.setProperty("--background", bg);
+    root.style.setProperty("--espresso",   bg);
+    root.style.setProperty("--cream",      cream);
+    root.style.setProperty("--foreground", cream);
+    root.style.setProperty("--bronze",     bronze);
+
     if (settings.color_card_bg) {
-      root.style.setProperty("--card", settings.color_card_bg);
-      root.style.setProperty("--popover", settings.color_card_bg);
+      root.style.setProperty("--card",     settings.color_card_bg);
+      root.style.setProperty("--popover",  settings.color_card_bg);
     }
 
     // Fonts — override CSS variable + inject Google Fonts link tag
